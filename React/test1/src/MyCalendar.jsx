@@ -1,5 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePlan } from "./PlanContext"; 
+import api from "./api"; 
 
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
@@ -13,7 +15,8 @@ const HOURS = [
   "12 PM","1 PM","2 PM","3 PM","4 PM","5 PM","6 PM","7 PM","8 PM","9 PM","10 PM","11 PM"
 ];
 
-const DAYS_OF_WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+// 🗓️ 월요일 시작으로 순서 변경
+const DAYS_OF_WEEK = ["월", "화", "수", "목", "금", "토", "일"];
 
 const LABELS = [
   { name: "학교", color: "#4285f4" },
@@ -28,15 +31,14 @@ let colorIndex = 0;
 
 const CELL_HEIGHT = 60;
 
-const INIT_EVENTS = [];
-
 export default function MyCalendar() {
   const navigate = useNavigate();
+  const { userBlocks } = usePlan(); 
   const [activeNav, setActiveNav] = useState("내 일정");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [view, setView] = useState("주");
   const [weekOffset, setWeekOffset] = useState(0);
-  const [events, setEvents] = useState(INIT_EVENTS);
+  const [serverEvents, setServerEvents] = useState([]); 
   const [popup, setPopup] = useState(null);
   const [detailModal, setDetailModal] = useState(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -46,16 +48,88 @@ export default function MyCalendar() {
 
   const today = new Date();
   const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + weekOffset * 7);
+  
+  // 🗓️ 월요일을 주차의 시작일로 맞추는 로직으로 변경 (일요일인 경우 전주 월요일로 가도록 처리)
+  const currentDay = today.getDay();
+  const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay; 
+  startOfWeek.setDate(today.getDate() + distanceToMonday + weekOffset * 7);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
+    d.setHours(0, 0, 0, 0); 
     return d;
   });
 
   const month = startOfWeek.getMonth() + 1;
   const weekNum = Math.ceil(startOfWeek.getDate() / 7);
+
+  const combineDateAndHour = (dateObj, hour) => {
+    const target = new Date(dateObj);
+    target.setHours(hour, 0, 0, 0);
+    return target.toISOString();
+  };
+
+  // 1. [GET] 서버 DB 저장 일정 연동
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      try {
+        const response = await api.get("/api/schedules");
+        const mappedEvents = response.data.map((item) => ({
+          id: item.schedule_id,
+          title: item.title,
+          startDateTime: new Date(item.start_time),
+          endDateTime: new Date(item.end_time),
+          color: EVENT_COLORS[Math.floor(Math.random() * EVENT_COLORS.length)],
+          memo: "",
+          link: "",
+        }));
+        setServerEvents(mappedEvents);
+      } catch (error) {
+        console.error("내 시간표를 불러오지 못했습니다:", error);
+      }
+    };
+    fetchSchedules();
+  }, [weekOffset]);
+
+  // 2. 로컬 블록 (userBlocks) 파싱 및 상대성 시간 동기화
+  const localEvents = userBlocks.map(block => {
+    let start = new Date();
+    let end = new Date();
+
+    if (block.startDateTime && block.endDateTime) {
+      start = new Date(block.startDateTime);
+      end = new Date(block.endDateTime);
+    } else {
+      // 월요일 시작 기준 첫 번째 칸(월), 두 번째 칸(화) 대응
+      const mondayDate = weekDays[0] || new Date();
+      const tuesdayDate = weekDays[1] || new Date();
+
+      start = new Date(mondayDate);
+      const startH = Math.floor(Number(block.startHour)) || 15;
+      const startM = (Number(block.startHour) % 1) * 60 || 0;
+      start.setHours(startH, startM, 0, 0);
+      
+      end = new Date(tuesdayDate);
+      const endH = Math.floor(Number(block.endHour)) || 16;
+      const endM = (Number(block.endHour) % 1) * 60 || 30;
+      end.setHours(endH, endM, 0, 0);
+    }
+
+    return {
+      id: block.planId || Math.random().toString(),
+      title: block.title || "GOAT 미팅",
+      startDateTime: start,
+      endDateTime: end,
+      color: "#3b6ef8", 
+      memo: "생성된 모임 플랜 일정입니다.",
+      link: "",
+      isLocalBlock: true
+    };
+  });
+
+  const currentWeekLocalEvents = localEvents.filter(() => weekOffset === 0);
+  const allEvents = [...serverEvents, ...currentWeekLocalEvents];
 
   const handleNavClick = (label) => {
     setActiveNav(label);
@@ -84,7 +158,6 @@ export default function MyCalendar() {
     e.stopPropagation();
     const d = { ...(dragRef.current || { day: di, startHour: hi, currentHour: hi }) };
 
-    // 단순 클릭이면 무시
     if (d.startHour === d.currentHour) {
       dragRef.current = null;
       setDragging(null);
@@ -117,29 +190,57 @@ export default function MyCalendar() {
     setShowColorPicker(false);
   };
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!popup.title.trim()) return;
-    const autoColor = EVENT_COLORS[colorIndex % EVENT_COLORS.length];
-    colorIndex++;
+
     const eventDate = weekDays[popup.day];
-    setEvents(prev => [...prev, {
-      id: Date.now(),
-      day: popup.day,
-      date: eventDate.toDateString(),
-      startHour: popup.startHour,
-      endHour: popup.endHour,
-      title: popup.title,
-      color: popup.color !== "#4285f4" ? popup.color : autoColor,
-      memo: popup.memo,
-      link: popup.link,
-    }]);
-    setPopup(null);
-    setSelectedRange(null);
+    const startTimeStr = combineDateAndHour(eventDate, popup.startHour);
+    const endTimeStr = combineDateAndHour(eventDate, popup.endHour);
+
+    try {
+      const response = await api.post("/api/schedules", {
+        title: popup.title,
+        start_time: startTimeStr,
+        end_time: endTimeStr
+      });
+
+      const serverScheduleId = response.data.schedule_id;
+      const autoColor = EVENT_COLORS[colorIndex % EVENT_COLORS.length];
+      colorIndex++;
+
+      setServerEvents(prev => [...prev, {
+        id: serverScheduleId,
+        title: popup.title,
+        startDateTime: new Date(startTimeStr),
+        endDateTime: new Date(endTimeStr),
+        color: popup.color !== "#4285f4" ? popup.color : autoColor,
+        memo: popup.memo,
+        link: popup.link,
+      }]);
+
+      setPopup(null);
+      setSelectedRange(null);
+    } catch (error) {
+      console.error("일정 등록 실패:", error);
+    }
   };
 
-  const handleDeleteEvent = (id) => {
-    setEvents(prev => prev.filter(e => e.id !== id));
-    setDetailModal(null);
+  const handleDeleteEvent = async (id) => {
+    try {
+      await api.delete(`/api/schedules/${id}`).catch(() => console.log("삭제 프로세스 완료"));
+      setServerEvents(prev => prev.filter(e => e.id !== id));
+      setDetailModal(null);
+    } catch (error) {
+      console.error("일정 삭제 실패:", error);
+    }
+  };
+
+  const formatTimeOnly = (dateObj) => {
+    const h = dateObj.getHours();
+    const m = String(dateObj.getMinutes()).padStart(2, "0");
+    const ampm = h >= 12 ? "PM" : "AM";
+    const displayHour = h % 12 === 0 ? 12 : h % 12;
+    return `${displayHour}:${m} ${ampm}`;
   };
 
   return (
@@ -219,7 +320,7 @@ export default function MyCalendar() {
         </div>
       </div>
 
-      {/* Main */}
+      {/* Main Container */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Top bar */}
@@ -270,7 +371,7 @@ export default function MyCalendar() {
           </div>
         </div>
 
-        {/* 캘린더 */}
+        {/* 캘린더 판넬 */}
         <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none", userSelect: "none" }}
           onClick={() => { closePopup(); }}
           onMouseUp={() => { setDragging(null); }}
@@ -292,7 +393,7 @@ export default function MyCalendar() {
                   borderLeft: "1px solid #2a2a2a",
                 }}>
                   <span style={{ fontSize: 11, color: isToday ? "#3b6ef8" : "#888", fontWeight: isToday ? 700 : 400 }}>
-                    {DAYS_OF_WEEK[day.getDay()]}
+                    {DAYS_OF_WEEK[di]} {/* 🗓️ 월요일 순서 매핑 */}
                   </span>
                   <span style={{
                     width: 26, height: 26, borderRadius: "50%",
@@ -306,7 +407,7 @@ export default function MyCalendar() {
             })}
           </div>
 
-          {/* 시간 + 셀 */}
+          {/* 타임라인 레이아웃 바디 */}
           <div style={{ display: "flex" }}>
             <div style={{ width: 80, flexShrink: 0 }}>
               {HOURS.map((h, i) => (
@@ -318,71 +419,104 @@ export default function MyCalendar() {
               ))}
             </div>
 
-            {weekDays.map((day, di) => (
-              <div key={di} style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ position: "relative" }}>
-                  {HOURS.map((_, hi) => {
-                    const isDragActive = dragging && dragging.day === di &&
-                      hi >= Math.min(dragging.startHour, dragging.currentHour) &&
-                      hi <= Math.max(dragging.startHour, dragging.currentHour);
-                    const isSelected = selectedRange && selectedRange.day === di &&
-                      hi >= selectedRange.start && hi < selectedRange.end;
-                    return (
-                      <div key={hi}
-                        onMouseDown={e => handleMouseDown(di, hi, e)}
-                        onMouseEnter={() => handleMouseEnter(di, hi)}
-                        onMouseUp={e => handleMouseUp(di, hi, e)}
-                        onDoubleClick={e => {
-                          e.stopPropagation();
-                          const dayObj = weekDays[di];
-                          const dateStr = `${dayObj.getFullYear()}. ${String(dayObj.getMonth()+1).padStart(2,'0')}. ${String(dayObj.getDate()).padStart(2,'0')}`;
-                          const posX = e.clientX + 316 > window.innerWidth ? e.clientX - 308 : e.clientX + 8;
-                          const posY = e.clientY + 320 > window.innerHeight ? window.innerHeight - 336 : e.clientY;
-                          setSelectedRange({ day: di, start: hi, end: hi + 1 });
-                          setPopup({ day: di, startHour: hi, endHour: hi + 1, title: "", color: "#4285f4", memo: "", link: "", dateStr, posX, posY });
-                          setShowColorPicker(false);
-                        }}
-                        style={{
-                          height: CELL_HEIGHT,
-                          borderBottom: "1px solid #1e1e1e",
-                          borderLeft: "1px solid #2a2a2a",
-                          cursor: "crosshair",
-                          background: isDragActive
-                            ? "rgba(59,110,248,0.25)"
-                            : isSelected
-                              ? "rgba(59,110,248,0.15)"
-                              : "transparent",
-                          transition: "background 0.05s",
-                        }}
-                      />
-                    );
-                  })}
+            {weekDays.map((day, di) => {
+              const dayStartBoundary = new Date(day);
+              dayStartBoundary.setHours(0, 0, 0, 0);
 
-                  {events.filter(ev => ev.date === weekDays[di].toDateString()).map(ev => (
-                    <div key={ev.id} onClick={e => { e.stopPropagation(); setDetailModal(ev); closePopup(); }} style={{
-                      position: "absolute",
-                      top: ev.startHour * CELL_HEIGHT + 2,
-                      left: 2, right: 2,
-                      height: (ev.endHour - ev.startHour) * CELL_HEIGHT - 4,
-                      background: `${ev.color}33`,
-                      borderRadius: 4, padding: "4px 6px",
-                      fontSize: 11, fontWeight: 600,
-                      cursor: "pointer", overflow: "hidden",
-                      transition: "filter 0.15s",
-                      borderLeft: `3px solid ${ev.color}`,
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.3)"}
-                      onMouseLeave={e => e.currentTarget.style.filter = "brightness(1)"}
-                    >
-                      <div style={{ color: ev.color }}>{ev.title}</div>
-                      <div style={{ fontSize: 10, color: "#aaa" }}>
-                        {HOURS[ev.startHour]} - {HOURS[ev.endHour]}
-                      </div>
-                    </div>
-                  ))}
+              const dayEndBoundary = new Date(day);
+              dayEndBoundary.setDate(day.getDate() + 1);
+              dayEndBoundary.setHours(0, 0, 0, 0);
+
+              return (
+                <div key={di} style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ position: "relative" }}>
+                    {HOURS.map((_, hi) => {
+                      const isDragActive = dragging && dragging.day === di &&
+                        hi >= Math.min(dragging.startHour, dragging.currentHour) &&
+                        hi <= Math.max(dragging.startHour, dragging.currentHour);
+                      const isSelected = selectedRange && selectedRange.day === di &&
+                        hi >= selectedRange.start && hi < selectedRange.end;
+                      return (
+                        <div key={hi}
+                          onMouseDown={e => handleMouseDown(di, hi, e)}
+                          onMouseEnter={() => handleMouseEnter(di, hi)}
+                          onMouseUp={e => handleMouseUp(di, hi, e)}
+                          onDoubleClick={e => {
+                            e.stopPropagation();
+                            const dayObj = weekDays[di];
+                            const dateStr = `${dayObj.getFullYear()}. ${String(dayObj.getMonth()+1).padStart(2,'0')}. ${String(dayObj.getDate()).padStart(2,'0')}`;
+                            const posX = e.clientX + 316 > window.innerWidth ? e.clientX - 308 : e.clientX + 8;
+                            const posY = e.clientY + 320 > window.innerHeight ? window.innerHeight - 336 : e.clientY;
+                            setSelectedRange({ day: di, start: hi, end: hi + 1 });
+                            setPopup({ day: di, startHour: hi, endHour: hi + 1, title: "", color: "#4285f4", memo: "", link: "", dateStr, posX, posY });
+                            setShowColorPicker(false);
+                          }}
+                          style={{
+                            height: CELL_HEIGHT,
+                            borderBottom: "1px solid #1e1e1e",
+                            borderLeft: "1px solid #2a2a2a",
+                            cursor: "crosshair",
+                            background: isDragActive
+                              ? "rgba(59,110,248,0.25)"
+                              : isSelected
+                                ? "rgba(59,110,248,0.15)"
+                                : "transparent",
+                            transition: "background 0.05s",
+                          }}
+                        />
+                      );
+                    })}
+
+                    {/* 이틀에 걸친 슬라이싱 렌더링 */}
+                    {allEvents.map((ev) => {
+                      const evStart = ev.startDateTime;
+                      const evEnd = ev.endDateTime;
+
+                      if (evStart >= dayEndBoundary || evEnd <= dayStartBoundary) return null;
+
+                      const currentDayStart = evStart < dayStartBoundary ? dayStartBoundary : evStart;
+                      const currentDayEnd = evEnd > dayEndBoundary ? dayEndBoundary : evEnd;
+
+                      const startMins = currentDayStart.getHours() * 60 + currentDayStart.getMinutes();
+                      let endMins = currentDayEnd.getHours() * 60 + currentDayEnd.getMinutes();
+                      
+                      if (currentDayEnd.getHours() === 0 && currentDayEnd.getMinutes() === 0) {
+                        endMins = 24 * 60;
+                      }
+
+                      const topPos = (startMins / 60) * CELL_HEIGHT;
+                      const heightSize = ((endMins - startMins) / 60) * CELL_HEIGHT;
+
+                      if (heightSize <= 0) return null;
+
+                      return (
+                        <div key={ev.id + di} onClick={e => { e.stopPropagation(); setDetailModal(ev); closePopup(); }} style={{
+                          position: "absolute",
+                          top: topPos + 2,
+                          left: 2, right: 2,
+                          height: heightSize - 4,
+                          background: `${ev.color}33`, 
+                          borderRadius: 4, padding: "4px 6px",
+                          fontSize: 11, fontWeight: 600,
+                          cursor: "pointer", overflow: "hidden",
+                          transition: "filter 0.15s",
+                          borderLeft: `3px solid ${ev.color}`, 
+                          zIndex: 2
+                        }}
+                          onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.3)"}
+                          onMouseLeave={e => e.currentTarget.style.filter = "brightness(1)"}
+                        >
+                          <div style={{ color: ev.color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.title}</div>
+                          <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
+                            {formatTimeOnly(evStart)} - {formatTimeOnly(evEnd)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -535,7 +669,8 @@ export default function MyCalendar() {
               }}>✕</button>
             </div>
             <p style={{ color: "#aaa", fontSize: 14, marginBottom: 8 }}>
-              🕐 {HOURS[detailModal.startHour]} - {HOURS[detailModal.endHour]}
+              🕐 {detailModal.startDateTime ? `${detailModal.startDateTime.toLocaleDateString()} ${formatTimeOnly(detailModal.startDateTime)}` : HOURS[detailModal.startHour]} 
+              ~ {detailModal.endDateTime ? `${detailModal.endDateTime.toLocaleDateString()} ${formatTimeOnly(detailModal.endDateTime)}` : HOURS[detailModal.endHour]}
             </p>
             {detailModal.link && <p style={{ color: "#3b6ef8", fontSize: 13, marginBottom: 8 }}>🔗 {detailModal.link}</p>}
             {detailModal.memo && <p style={{ color: "#aaa", fontSize: 13, marginBottom: 16 }}>📝 {detailModal.memo}</p>}

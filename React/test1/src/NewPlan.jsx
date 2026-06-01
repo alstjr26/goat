@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
+import api from "./api";
 
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
@@ -115,7 +116,6 @@ export default function NewPlan() {
 
   const removePlace = (i) => setPlaces(prev => prev.filter((_, idx) => idx !== i));
 
-  // 태그 클릭 시 입력창에 채우기
   const fillPlaceInput = (p) => setPlaceInput(p);
   const fillParticipantInput = (p) => setParticipantInput(p);
 
@@ -127,51 +127,107 @@ export default function NewPlan() {
 
   const removeParticipant = (i) => setParticipants(prev => prev.filter((_, idx) => idx !== i));
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title.trim()) { alert("플랜 제목을 입력해주세요!"); return; }
 
-    const parseHour = (timeStr) => {
-      if (!timeStr) return 9;
-      const [h] = timeStr.split(":");
-      return parseInt(h) || 9;
-    };
+    // ⭐️ 날짜 변환 로직: "2026. 5. 31"을 "2026-05-31T23:59:59Z" 형태로 바꿔줍니다.
+    let formattedDeadline = "2026-12-31T23:59:59Z"; // 아무것도 입력 안 했을 때 기본값
+    
+    if (endDate) {
+      const parts = endDate.split('.').map(p => p.trim()).filter(Boolean);
+      if (parts.length >= 3) {
+        const y = parts[0];
+        const m = parts[1].padStart(2, '0');
+        const d = parts[2].padStart(2, '0');
+        formattedDeadline = `${y}-${m}-${d}T23:59:59Z`; 
+      }
+    }
 
-    const planId = Date.now();
-    const startH = parseHour(startTime);
-    const endH = parseHour(endTime) || startH + 1;
+    try {
+      // 1. 서버로 변환된 날짜 전송
+      const response = await api.post("/api/groups", {
+        title: title,
+        description: "", 
+        deadline: formattedDeadline
+      });
 
-    addBlock({
-      planId,
-      day: 1,
-      startHour: startH,
-      endHour: endH,
-      type: "blue",
-      title,
-      avatars: [],
-      extra: participants.length,
-    });
+      const newGroupId = response.data.group_plan_id; 
 
-    addPlan({
-      id: planId,
-      title,
-      status: "확정",
-      date: startDate || "날짜 미정",
-      time: `${startTime || "--"} - ${endTime || "--"}`,
-      location: places[0] || "장소 미정",
-      count: participants.length,
-      isMine: true,
-      confirmed: true,
-      dateRange: `${startDate || "미정"} ~ ${endDate || "미정"}`,
-      bestTime: `${startDate || ""} ${startTime || "--"} ~ ${endTime || "--"}`,
-      totalCount: participants.length,
-      votedCount: 0,
-      places: places.map(p => ({ name: p, votes: 0 })),
-      participants: participants.map(p => ({ name: p, voted: false })),
-      memo: "",
-    });
+      // 2. 입력된 시간 처리 (시작 시간 / 종료 시간 분리)
+      const parseHour = (timeStr) => {
+        if (!timeStr) return 9;
+        const [h] = timeStr.split(":");
+        return parseInt(h) || 9;
+      };
 
-    alert(`"${title}" 모임이 생성되었습니다!`);
-    navigate("/home");
+      const parseMinute = (timeStr) => {
+        if (!timeStr) return 0;
+        const [, m] = timeStr.split(":");
+        return parseInt(m) || 0;
+      };
+
+      const startH = parseHour(startTime);
+      const startM = parseMinute(startTime);
+      const endH = parseHour(endTime) || startH + 1;
+      const endM = parseMinute(endTime);
+
+      // ⭐️ 핵심 수정: 입력받은 시작 날짜(startDate)로 실제 요일 인덱스 구하기
+      let dayIndex = 1; // 변환 실패 시 기본 월요일(1)
+      if (startDate) {
+        // "2026. 6. 1" -> "2026-6-1" 표준 포맷 변환
+        const cleanDate = startDate.replace(/\s/g, "").replace(/\./g, "-");
+        const dateObj = new Date(cleanDate);
+        if (!isNaN(dateObj.getTime())) {
+          const day = dateObj.getDay(); // 0: 일, 1: 월, 2: 화, 3: 수, 4: 목, 5: 금, 6: 토
+          // 캘린더가 월(1)~일(7) 체계를 주로 쓰므로 이에 맞게 매핑 (필요시 수정)
+          dayIndex = day === 0 ? 7 : day; 
+        }
+      }
+
+      // 3. 프론트엔드 UI 상태 업데이트
+      addBlock({
+        planId: newGroupId, 
+        day: dayIndex, // 👈 동적으로 계산된 요일 적용
+        startHour: startH,
+        startMinute: startM, // 👈 분 단위 추가 전달
+        endHour: endH,
+        endMinute: endM, // 👈 분 단위 추가 전달
+        type: "blue",
+        title,
+        avatars: [],
+        extra: participants.length,
+      });
+
+      addPlan({
+        id: newGroupId, 
+        title,
+        status: "확정",
+        date: startDate ? startDate.replace(/\s/g, "").replace(/\./g, "-") : "날짜 미정", // 캘린더 인식용 표준 포맷 변환
+        time: `${startTime || "00:00"} - ${endTime || "00:00"}`,
+        location: places[0] || "장소 미정",
+        count: participants.length,
+        isMine: true,
+        confirmed: true,
+        dateRange: `${startDate || "미정"} ~ ${endDate || "미정"}`,
+        bestTime: `${startDate || ""} ${startTime || "--"} ~ ${endTime || "--"}`,
+        totalCount: participants.length,
+        votedCount: 0,
+        places: places.map(p => ({ name: p, votes: 0 })),
+        participants: participants.map(p => ({ name: p, voted: false })),
+        memo: "",
+      });
+
+      alert(`"${title}" 모임이 성공적으로 생성되었습니다!`);
+      navigate("/home");
+
+    } catch (error) {
+      console.error("방 생성 에러:", error);
+      if (error.response && error.response.data) {
+        alert(`백엔드 거절 사유: ${JSON.stringify(error.response.data)}`);
+      } else { 
+        alert("방 생성에 실패했습니다. 다시 시도해 주세요.");
+      }
+    }
   };
 
   return (

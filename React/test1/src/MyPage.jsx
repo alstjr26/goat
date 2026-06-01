@@ -22,7 +22,8 @@ export default function MyPage() {
   const [addInput, setAddInput] = useState("");
   const [addError, setAddError] = useState("");
   const { user } = useUser();
-  const { userPlans } = usePlan();
+  const { userPlans = [] } = usePlan(); // usePlan 내부 값이 빈 배열일 때를 대비해 기본값 처리
+  
   const createdCount = userPlans.filter(p => p.isMine).length;
   const joinedCount = userPlans.filter(p => !p.isMine).length;
 
@@ -262,8 +263,9 @@ export default function MyPage() {
               }}>✏️</div>
             </div>
             <div>
+              {/* ⭐️ user.name에서 user.nickname으로 수정하여 백엔드 데이터와 맞춤 */}
               <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
-                {user?.name || "사용자"}
+                {user?.nickname || "사용자"} 
               </div>
               <div style={{ fontSize: 14, color: "#888" }}>
                 {user?.email || "이메일 없음"}
@@ -316,7 +318,7 @@ export default function MyPage() {
                     fontSize: 36, marginBottom: 20,
                   }}>👥</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
-                    아직 친구가 없습니다.
+                    ยังไม่มีเพื่อน
                   </div>
                   <div style={{ fontSize: 13, color: "#666", marginBottom: 20 }}>
                     친구들을 추가하여 함께 일정을 만들어보세요.

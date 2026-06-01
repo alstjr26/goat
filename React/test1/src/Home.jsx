@@ -48,14 +48,40 @@ function AvatarGroup({ avatars, extra, size = 26, showText = false }) {
 }
 
 const INIT_BLOCKS = [];
+const CELL_HEIGHT = 54; 
+const START_HOUR = 7; // 오전 7시 시작
 
-const CELL_HEIGHT = 54;
-const START_HOUR = 7;
+// 시간 포맷 헬퍼 (hh:mm 출력)
+const formatTimeOnly = (dateObj) => {
+  const h = dateObj.getHours();
+  const m = String(dateObj.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+};
 
 function CalendarBlock({ block, onClick }) {
-  const top = (block.startHour - START_HOUR) * CELL_HEIGHT;
-  const height = (block.endHour - block.startHour) * CELL_HEIGHT;
+  const evStart = new Date(block.computedStart);
+  const evEnd = new Date(block.computedEnd);
+
+  // 현재 뷰포트 기준(오전 7시 ~ 밤 12시) 안으로 시간을 제한
+  const startMins = Math.max(evStart.getHours() * 60 + evStart.getMinutes(), START_HOUR * 60);
+  const endMins = Math.min(evEnd.getHours() * 60 + evEnd.getMinutes(), 24 * 60);
+
+  // 만약 24:00에 도달했거나 익일 새벽이라 시간 연산이 0이 되는 조건 제어
+  const displayEndMins = (evEnd.getDate() !== evStart.getDate() || (evEnd.getHours() === 0 && evEnd.getMinutes() === 0)) ? 24 * 60 : endMins;
+
+  const startOffsetMins = startMins - (START_HOUR * 60);
+  const durationMins = displayEndMins - startMins;
+
+  const top = (startOffsetMins / 60) * CELL_HEIGHT;
+  const height = (durationMins / 60) * CELL_HEIGHT;
+
   const isBlue = block.type === "blue";
+  if (height <= 0) return null;
+
+  // 원본 시간 안내 라벨 구성
+  const origStart = new Date(block.realStart);
+  const origEnd = new Date(block.realEnd);
+
   return (
     <div onClick={onClick} style={{
       position: "absolute",
@@ -63,10 +89,12 @@ function CalendarBlock({ block, onClick }) {
       height: height - 4,
       background: isBlue ? "#3b6ef8" : (block.type === "gray-light" ? "#2a2a2a" : "#222222"),
       borderRadius: 8,
-      padding: isBlue ? "8px 10px" : 0,
+      padding: isBlue ? "6px 10px" : "4px 8px",
       display: "flex", flexDirection: "column",
-      justifyContent: "flex-start", gap: 4,
+      justifyContent: "flex-start", gap: 2,
       cursor: "pointer", transition: "filter 0.15s",
+      zIndex: 5,
+      overflow: "hidden"
     }}
       onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.2)"}
       onMouseLeave={e => e.currentTarget.style.filter = "brightness(1)"}
@@ -75,10 +103,13 @@ function CalendarBlock({ block, onClick }) {
         <AvatarGroup avatars={block.avatars} extra={block.extra} size={24} />
       )}
       {block.title && (
-        <div style={{ fontSize: 11, color: "#fff", fontWeight: 600, padding: "0 2px" }}>
+        <div style={{ fontSize: 11, color: "#fff", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {block.title}
         </div>
       )}
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
+        {formatTimeOnly(origStart)} - {formatTimeOnly(origEnd)}
+      </div>
     </div>
   );
 }
@@ -138,16 +169,27 @@ export default function Home() {
   const [showAddPlace, setShowAddPlace] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
+  const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
 
+  // 오늘 날짜 기준으로 월요일 계산 및 주차 이동 처리
   const today = new Date();
   const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1 + weekOffset * 7);
-  const DAYS = Array.from({ length: 7 }, (_, i) => {
+  const currentDay = today.getDay();
+  const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+  startOfWeek.setDate(today.getDate() - distanceToMonday + weekOffset * 7);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  // 일주일치 날짜 객체 생성
+  const weekDaysObjs = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(startOfWeek);
     d.setDate(startOfWeek.getDate() + i);
+    return d;
+  });
+
+  const DAYS = weekDaysObjs.map(d => {
     return `${DAYS_OF_WEEK_KO[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`;
   });
+
   const month = startOfWeek.getMonth() + 1;
   const weekNum = Math.ceil(startOfWeek.getDate() / 7);
 
@@ -224,14 +266,17 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
   };
 
   const handleBlockClick = (block) => {
+    const origStart = new Date(block.realStart);
+    const origEnd = new Date(block.realEnd);
+    
     setModal({
       type: "block",
       block: block,
       content: (
         <div>
-          <p style={{ color: "#aaa", fontSize: 13, marginBottom: 8 }}>📅 {DAYS[block.day]}</p>
+          <p style={{ color: "#aaa", fontSize: 13, marginBottom: 8 }}>📅 전체 기간: {origStart.getMonth() + 1}/{origStart.getDate()} ~ {origEnd.getMonth() + 1}/{origEnd.getDate()}</p>
           <p style={{ color: "#fff", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
-            {block.startHour}:00 ~ {block.endHour}:00
+            {formatTimeOnly(origStart)} ~ {formatTimeOnly(origEnd)}
           </p>
           {block.title && (
             <p style={{ color: "#fff", fontSize: 14, marginBottom: 4 }}>📋 {block.title}</p>
@@ -296,6 +341,35 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
     if (label === "마이페이지") { navigate("/mypage"); return; }
   };
 
+  // 실제 Plan에서 넘어온 블록 조립 및 분 단위 깨짐 보정
+  const processedUserBlocks = userBlocks.map(block => {
+    let start = block.realStart ? new Date(block.realStart) : new Date(2026, 5, 1, 15, 0);
+    let end = block.realEnd ? new Date(block.realEnd) : new Date(2026, 5, 2, 16, 30);
+
+    if (block.startHour !== undefined) {
+      const sh = Math.floor(Number(block.startHour));
+      const sm = Math.round((Number(block.startHour) % 1) * 60) || Number(block.startMinute) || 0;
+      start.setHours(sh, sm, 0, 0);
+    }
+    if (block.endHour !== undefined) {
+      const eh = Math.floor(Number(block.endHour));
+      const em = Math.round((Number(block.endHour) % 1) * 60) || Number(block.endMinute) || 0;
+      end.setHours(eh, em, 0, 0);
+    }
+
+    return {
+      ...block,
+      title: block.title || "GOAT 미팅",
+      type: "blue",
+      avatars: AVATARS.slice(0, 2),
+      extra: 1,
+      realStart: start,
+      realEnd: end
+    };
+  });
+
+  const allCombinedBlocks = [...initBlocks, ...processedUserBlocks];
+
   return (
     <div className="page-fade" style={{
       display: "flex", height: "100vh", width: "100vw",
@@ -322,17 +396,13 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
                 color: "#aaa", borderRadius: 8, padding: "12px 0", fontSize: 14, cursor: "pointer"
               }}>취소</button>
               <button onClick={() => {
-  if (deleteConfirm.planId) {
-    removeBlock(deleteConfirm.planId);
-  } else {
-    setInitBlocks(prev => prev.filter(b =>
-      !(b.day === deleteConfirm.day &&
-        b.startHour === deleteConfirm.startHour &&
-        b.endHour === deleteConfirm.endHour)
-    ));
-  }
-  setDeleteConfirm(null);
-}} style={{
+                if (deleteConfirm.planId) {
+                  removeBlock(deleteConfirm.planId);
+                } else {
+                  setInitBlocks(prev => prev.filter(b => b !== deleteConfirm));
+                }
+                setDeleteConfirm(null);
+              }} style={{
                 flex: 1, background: "#e05555", border: "none",
                 color: "#fff", borderRadius: 8, padding: "12px 0",
                 fontSize: 14, fontWeight: 700, cursor: "pointer"
@@ -412,9 +482,8 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
         </div>
       </div>
 
-      {/* 가운데 + 오른쪽 전체 스크롤 영역 */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto",
-        scrollbarWidth: "none", msOverflowStyle: "none" }}>
+      {/* Main Container */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
 
         {/* Top bar */}
         <div style={{
@@ -451,14 +520,8 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
               background: "#3b6ef8", color: "#fff", border: "none",
               borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600,
               cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = "#2a5de0"}
-              onMouseLeave={e => e.currentTarget.style.background = "#3b6ef8"}
-            >🔗 공유하기</button>
+            }}>🔗 공유하기</button>
             <span className="lang-label" style={{ color: "#888", fontSize: 13 }}>ENG | KOR</span>
-            <span style={{ color: "#888", fontSize: 16, cursor: "pointer" }}
-              onClick={() => alert("도움말 준비 중입니다!")}
-            >ℹ️</span>
           </div>
         </div>
 
@@ -476,17 +539,14 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
                 cursor: "pointer", border: "none",
                 background: view === v ? "#3b6ef8" : "#222222",
                 color: view === v ? "#fff" : "#aaa",
-                transition: "background 0.15s",
               }}>{v}</button>
             ))}
           </div>
           <AvatarGroup avatars={AVATARS.slice(0, 3)} extra={7} size={28} showText={true} />
         </div>
 
-        {/* 캘린더 + 오른쪽 패널 */}
+        {/* 캘린더 판넬 */}
         <div style={{ display: "flex", flex: 1 }}>
-
-          {/* Calendar */}
           <div style={{ flex: 1, padding: "0 0 24px 24px", minWidth: 0 }}>
             <div style={{ display: "flex" }}>
               <div style={{ width: 52, flexShrink: 0 }}>
@@ -498,72 +558,88 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
                   }}>{h}</div>
                 ))}
               </div>
-              {DAYS.map((day, di) => (
-                <div key={day} style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    height: 36, display: "flex", alignItems: "center",
-                    justifyContent: "center", fontSize: 12, color: "#aaa",
-                    fontWeight: 500, borderBottom: "1px solid #2a2a2a",
-                  }}>{day}</div>
-                  <div style={{ position: "relative" }}>
-                    {HOURS.map(h => (
-                      <div key={h} style={{
-                        height: CELL_HEIGHT,
-                        borderBottom: "1px solid #2a2a2a",
-                        borderLeft: "1px solid #2a2a2a",
-                      }} />
-                    ))}
-                    {[...initBlocks, ...userBlocks].filter(b => b.day === di).map((block, bi) => (
-                      <CalendarBlock key={bi} block={block} onClick={() => handleBlockClick(block)} />
-                    ))}
+              
+              {DAYS.map((day, di) => {
+                const targetDayObj = weekDaysObjs[di];
+                
+                // 해당 일의 '오전 7시' 경계 설정
+                const dayStartBoundary = new Date(targetDayObj);
+                dayStartBoundary.setHours(START_HOUR, 0, 0, 0);
+
+                // 해당 일의 '오후 24시(다음날 00시)' 경계 설정
+                const dayEndBoundary = new Date(targetDayObj);
+                dayEndBoundary.setDate(targetDayObj.getDate() + 1);
+                dayEndBoundary.setHours(0, 0, 0, 0);
+
+                return (
+                  <div key={day} style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      height: 36, display: "flex", alignItems: "center",
+                      justifyContent: "center", fontSize: 12, color: "#aaa",
+                      fontWeight: 500, borderBottom: "1px solid #2a2a2a",
+                    }}>{day}</div>
+                    <div style={{ position: "relative" }}>
+                      {HOURS.map(h => (
+                        <div key={h} style={{
+                          height: CELL_HEIGHT,
+                          borderBottom: "1px solid #2a2a2a",
+                          borderLeft: "1px solid #2a2a2a",
+                        }} />
+                      ))}
+                      
+                      {/* ⭐️ 이틀에 걸친 연속 일정을 오늘 표시 영역 안으로 정밀 슬라이싱 */}
+                      {allCombinedBlocks.map((block, bi) => {
+                        const st = new Date(block.realStart);
+                        const ed = new Date(block.realEnd);
+
+                        // 이번 날짜 범위에 아예 안 겹치면 패스
+                        if (st >= dayEndBoundary || ed <= dayStartBoundary) return null;
+
+                        // 경계선 자르기 연산
+                        const currentDayStart = st < dayStartBoundary ? dayStartBoundary : st;
+                        const currentDayEnd = ed > dayEndBoundary ? dayEndBoundary : ed;
+
+                        const blockForRender = {
+                          ...block,
+                          computedStart: currentDayStart,
+                          computedEnd: currentDayEnd
+                        };
+
+                        return (
+                          <CalendarBlock key={bi} block={blockForRender} onClick={() => handleBlockClick(blockForRender)} />
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {/* Right panel */}
           <div className="right-panel" style={{
-            width: 240, background: "#111111",
-            borderLeft: "1px solid #2a2a2a",
-            padding: "20px 12px", display: "flex",
-            flexDirection: "column", gap: 20,
-            flexShrink: 0,
+            width: 240, background: "#111111", borderLeft: "1px solid #2a2a2a",
+            padding: "20px 12px", display: "flex", flexDirection: "column", gap: 20, flexShrink: 0,
           }}>
             <button onClick={handleLoadSchedule} style={{
               width: "100%", background: "#222222", color: "#fff",
               border: "1px solid #2a2a2a", borderRadius: 10,
               padding: "14px 0", fontSize: 14, fontWeight: 600, cursor: "pointer",
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = "#2a2a2a"}
-              onMouseLeave={e => e.currentTarget.style.background = "#222222"}
-            >내 일정 불러오기</button>
+            }}>내 일정 불러오기</button>
 
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: "#fff" }}>추천 일정</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {INIT_RECOMMENDED.map((r, i) => (
                   <div key={i} onClick={() => handleRecommendClick(r)} style={{
-                    background: i === 0 ? "#3b6ef8" : "#1a1a1a",
-                    borderRadius: 12, padding: "14px 16px",
-                    border: i === 0 ? "none" : "1px solid #2a2a2a",
-                    cursor: "pointer", transition: "filter 0.15s",
-                  }}
-                    onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.15)"}
-                    onMouseLeave={e => e.currentTarget.style.filter = "brightness(1)"}
-                  >
+                    background: i === 0 ? "#3b6ef8" : "#1a1a1a", borderRadius: 12, padding: "14px 16px",
+                    border: i === 0 ? "none" : "1px solid #2a2a2a", cursor: "pointer",
+                  }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                       <span style={{ fontSize: 12, color: i === 0 ? "#c0d4ff" : "#888" }}>{r.day}</span>
-                      <span style={{
-                        fontSize: 11,
-                        background: i === 0 ? "rgba(255,255,255,0.2)" : "#222222",
-                        color: i === 0 ? "#fff" : "#7090f8",
-                        borderRadius: 5, padding: "2px 8px", fontWeight: 600
-                      }}>Best match</span>
+                      <span style={{ fontSize: 11, background: i === 0 ? "rgba(255,255,255,0.2)" : "#222222", color: i === 0 ? "#fff" : "#7090f8", borderRadius: 5, padding: "2px 8px", fontWeight: 600 }}>Best match</span>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: i === 0 ? "#fff" : "#ddd", marginBottom: 8 }}>
-                      {r.time}
-                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: i === 0 ? "#fff" : "#ddd", marginBottom: 8 }}>{r.time}</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12, color: i === 0 ? "#c0d4ff" : "#888" }}>
                       <span>📍 {r.location}</span>
                       <span>👥 {r.count} 가능</span>
@@ -579,57 +655,25 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
                 {places.sort((a, b) => b.votes - a.votes).map((p, i) => (
                   <div key={i} onClick={() => handleVotePlace(p.name)} style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
-                    background: myVote === p.name ? "#222222" : "#1a1a1a",
-                    borderRadius: 10, padding: "12px 16px",
-                    border: myVote === p.name ? "1px solid #3b6ef8" : "1px solid #2a2a2a",
-                    fontSize: 14, color: "#ddd", cursor: "pointer", transition: "all 0.15s",
+                    background: myVote === p.name ? "#222222" : "#1a1a1a", borderRadius: 10, padding: "12px 16px",
+                    border: myVote === p.name ? "1px solid #3b6ef8" : "1px solid #2a2a2a", fontSize: 14, color: "#ddd", cursor: "pointer",
                   }}>
                     <span>{p.name} {myVote === p.name ? "✓" : ""}</span>
-                    <span style={{
-                      background: "#222222", color: "#7090f8",
-                      borderRadius: 6, padding: "3px 10px", fontSize: 13, fontWeight: 700
-                    }}>{p.votes}표</span>
+                    <span style={{ background: "#222222", color: "#7090f8", borderRadius: 6, padding: "3px 10px", fontSize: 13, fontWeight: 700 }}>{p.votes}표</span>
                   </div>
                 ))}
                 {showAddPlace ? (
                   <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                    <input
-                      value={newPlace}
-                      onChange={e => setNewPlace(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleAddPlace()}
-                      placeholder="장소 이름"
-                      autoFocus
-                      style={{
-                        flex: 1, background: "#222222", border: "1px solid #2a2a2a",
-                        color: "#fff", borderRadius: 8, padding: "8px 10px",
-                        fontSize: 13, outline: "none"
-                      }}
-                    />
-                    <button onClick={handleAddPlace} style={{
-                      background: "#3b6ef8", border: "none", color: "#fff",
-                      borderRadius: 8, padding: "8px 12px", fontSize: 13, cursor: "pointer"
-                    }}>추가</button>
+                    <input value={newPlace} onChange={e => setNewPlace(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddPlace()} placeholder="장소 이름" autoFocus style={{ flex: 1, background: "#222222", border: "1px solid #2a2a2a", color: "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none" }} />
+                    <button onClick={handleAddPlace} style={{ background: "#3b6ef8", border: "none", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 13, cursor: "pointer" }}>추가</button>
                   </div>
                 ) : (
-                  <div onClick={() => setShowAddPlace(true)} style={{
-                    fontSize: 13, color: "#555", padding: "4px 2px", cursor: "pointer",
-                  }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#aaa"}
-                    onMouseLeave={e => e.currentTarget.style.color = "#555"}
-                  >+ 장소 추가하기</div>
+                  <div onClick={() => setShowAddPlace(true)} style={{ fontSize: 13, color: "#555", padding: "4px 2px", cursor: "pointer" }}>+ 장소 추가하기</div>
                 )}
               </div>
             </div>
 
-            <button onClick={handleVote} style={{
-              width: "100%", background: "#3b6ef8", color: "#fff",
-              border: "none", borderRadius: 10,
-              padding: "15px 0", fontSize: 15, fontWeight: 700, cursor: "pointer",
-              marginTop: "auto",
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = "#2a5de0"}
-              onMouseLeave={e => e.currentTarget.style.background = "#3b6ef8"}
-            >투표하기</button>
+            <button onClick={handleVote} style={{ width: "100%", background: "#3b6ef8", color: "#fff", border: "none", borderRadius: 10, padding: "15px 0", fontSize: 15, fontWeight: 700, cursor: "pointer", marginTop: "auto" }}>투표하기</button>
           </div>
         </div>
       </div>
@@ -637,11 +681,7 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
       <style>{`
         div::-webkit-scrollbar { display: none; }
         @media (max-width: 768px) {
-          .sidebar {
-            position: fixed !important;
-            top: 0; left: 0; bottom: 0;
-            transform: translateX(-100%);
-          }
+          .sidebar { position: fixed !important; top: 0; left: 0; bottom: 0; transform: translateX(-100%); }
           .sidebar-open { transform: translateX(0%) !important; }
           .sidebar-close-btn { display: block !important; }
           .mobile-overlay { display: block !important; }
