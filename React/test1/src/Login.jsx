@@ -114,14 +114,6 @@ function Register({ onBack }) {
       case 4:
         return (
           <div>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: "50%",
-                background: "#2a2a2a", display: "flex",
-                alignItems: "center", justifyContent: "center",
-                fontSize: 36, cursor: "pointer", border: "2px dashed #444",
-              }}>👤</div>
-            </div>
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: "block", fontSize: 13, color: "#aaa", marginBottom: 6 }}>닉네임</label>
               <input value={name} onChange={e => setName(e.target.value)}

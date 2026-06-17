@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePlan } from "./PlanContext";
 
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
@@ -21,14 +22,13 @@ const LABELS = [
   { name: "과제", color: "#fbbc04" },
   { name: "알바", color: "#ff6d00" },
   { name: "스터디", color: "#ea4335" },
-  { name: "스터디", color: "#9c27b0" },
+
 ];
+
 const EVENT_COLORS = ["#4285f4", "#34a853", "#fbbc04", "#ff6d00", "#ea4335", "#9c27b0", "#00bcd4", "#ff4081", "#8bc34a", "#ff9800"];
 let colorIndex = 0;
 
 const CELL_HEIGHT = 60;
-
-const INIT_EVENTS = [];
 
 export default function MyCalendar() {
   const navigate = useNavigate();
@@ -36,7 +36,9 @@ export default function MyCalendar() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [view, setView] = useState("주");
   const [weekOffset, setWeekOffset] = useState(0);
-  const [events, setEvents] = useState(INIT_EVENTS);
+  const { userEvents, addEvent, removeEvent } = usePlan();
+  const [events, setEvents] = useState([]);
+  const allEvents = [...events, ...userEvents];
   const [popup, setPopup] = useState(null);
   const [detailModal, setDetailModal] = useState(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -83,17 +85,13 @@ export default function MyCalendar() {
   const handleMouseUp = (di, hi, e) => {
     e.stopPropagation();
     const d = { ...(dragRef.current || { day: di, startHour: hi, currentHour: hi }) };
-
-    // 단순 클릭이면 무시
     if (d.startHour === d.currentHour) {
       dragRef.current = null;
       setDragging(null);
       return;
     }
-
     dragRef.current = null;
     setDragging(null);
-
     const start = Math.min(d.startHour, d.currentHour);
     const end = Math.max(d.startHour, d.currentHour) + 1;
     const dayObj = weekDays[di];
@@ -103,7 +101,6 @@ export default function MyCalendar() {
     const popupW = 300, popupH = 320;
     const posX = mx + popupW + 16 > window.innerWidth ? mx - popupW - 8 : mx + 8;
     const posY = my + popupH > window.innerHeight ? window.innerHeight - popupH - 16 : my;
-
     setSelectedRange({ day: di, start, end });
     setTimeout(() => {
       setPopup({ day: di, startHour: start, endHour: end, title: "", color: "#4285f4", memo: "", link: "", dateStr, posX, posY });
@@ -122,7 +119,7 @@ export default function MyCalendar() {
     const autoColor = EVENT_COLORS[colorIndex % EVENT_COLORS.length];
     colorIndex++;
     const eventDate = weekDays[popup.day];
-    setEvents(prev => [...prev, {
+    const newEvent = {
       id: Date.now(),
       day: popup.day,
       date: eventDate.toDateString(),
@@ -132,13 +129,16 @@ export default function MyCalendar() {
       color: popup.color !== "#4285f4" ? popup.color : autoColor,
       memo: popup.memo,
       link: popup.link,
-    }]);
+    };
+    setEvents(prev => [...prev, newEvent]);
+    addEvent(newEvent);
     setPopup(null);
     setSelectedRange(null);
   };
 
   const handleDeleteEvent = (id) => {
     setEvents(prev => prev.filter(e => e.id !== id));
+    removeEvent(id);
     setDetailModal(null);
   };
 
@@ -221,53 +221,23 @@ export default function MyCalendar() {
 
       {/* Main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-        {/* Top bar */}
         <div style={{ borderBottom: "1px solid #2a2a2a", background: "#111111", flexShrink: 0 }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "10px 20px",
-          }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{
                 display: "none", background: "none", border: "none",
                 color: "#fff", fontSize: 22, cursor: "pointer", padding: "0 4px"
               }}>☰</button>
               <button onClick={() => setWeekOffset(prev => prev - 1)} style={{
-                background: "none", border: "none", color: "#888",
-                fontSize: 16, cursor: "pointer", padding: "4px 6px",
+                background: "none", border: "none", color: "#888", fontSize: 16, cursor: "pointer", padding: "4px 6px",
               }}>◀</button>
               <span style={{ fontSize: 15, fontWeight: 700 }}>{month}월 {weekNum}주차</span>
               <button onClick={() => setWeekOffset(prev => prev + 1)} style={{
-                background: "none", border: "none", color: "#888",
-                fontSize: 16, cursor: "pointer", padding: "4px 6px",
+                background: "none", border: "none", color: "#888", fontSize: 16, cursor: "pointer", padding: "4px 6px",
               }}>▶</button>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button style={{
-                background: "#3b6ef8", color: "#fff", border: "none",
-                borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
-              }}>🔗 공유하기</button>
-              <span style={{ color: "#888", fontSize: 12 }}>ENG | KOR</span>
-              <span style={{ color: "#888", fontSize: 15 }}>ℹ️</span>
-            </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 20px 10px", gap: 6 }}>
-            <button onClick={() => setWeekOffset(0)} style={{
-              background: "#222222", border: "1px solid #2a2a2a",
-              color: "#fff", borderRadius: 8, padding: "5px 12px",
-              fontSize: 12, cursor: "pointer",
-            }}>오늘</button>
-            {["일", "주", "월", "년"].map(v => (
-              <button key={v} onClick={() => setView(v)} style={{
-                background: view === v ? "#3b6ef8" : "#222222",
-                border: "1px solid #2a2a2a",
-                color: view === v ? "#fff" : "#aaa",
-                borderRadius: 8, padding: "5px 12px",
-                fontSize: 12, cursor: "pointer",
-              }}>{v}</button>
-            ))}
-          </div>
+          
         </div>
 
         {/* 캘린더 */}
@@ -275,21 +245,17 @@ export default function MyCalendar() {
           onClick={() => { closePopup(); }}
           onMouseUp={() => { setDragging(null); }}
         >
-          {/* 요일 헤더 */}
           <div style={{
             display: "flex", position: "sticky", top: 0,
-            background: "#111111", zIndex: 5,
-            borderBottom: "1px solid #2a2a2a",
+            background: "#111111", zIndex: 5, borderBottom: "1px solid #2a2a2a",
           }}>
             <div style={{ width: 80, flexShrink: 0 }} />
             {weekDays.map((day, di) => {
               const isToday = day.toDateString() === today.toDateString();
               return (
                 <div key={di} style={{
-                  flex: 1, height: 48,
-                  display: "flex", flexDirection: "column",
-                  alignItems: "center", justifyContent: "center",
-                  borderLeft: "1px solid #2a2a2a",
+                  flex: 1, height: 48, display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", borderLeft: "1px solid #2a2a2a",
                 }}>
                   <span style={{ fontSize: 11, color: isToday ? "#3b6ef8" : "#888", fontWeight: isToday ? 700 : 400 }}>
                     {DAYS_OF_WEEK[day.getDay()]}
@@ -306,7 +272,6 @@ export default function MyCalendar() {
             })}
           </div>
 
-          {/* 시간 + 셀 */}
           <div style={{ display: "flex" }}>
             <div style={{ width: 80, flexShrink: 0 }}>
               {HOURS.map((h, i) => (
@@ -358,7 +323,7 @@ export default function MyCalendar() {
                     );
                   })}
 
-                  {events.filter(ev => ev.date === weekDays[di].toDateString()).map(ev => (
+                  {allEvents.filter(ev => ev.date === weekDays[di].toDateString()).map(ev => (
                     <div key={ev.id} onClick={e => { e.stopPropagation(); setDetailModal(ev); closePopup(); }} style={{
                       position: "absolute",
                       top: ev.startHour * CELL_HEIGHT + 2,
@@ -400,14 +365,9 @@ export default function MyCalendar() {
           boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
           zIndex: 200,
         }}>
-          <div style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            padding: "10px 14px 0",
-          }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px 0" }}>
             <span style={{ fontSize: 12, color: "#aaa" }}>비공개 🔒</span>
-            <button onClick={closePopup} style={{
-              background: "none", border: "none", color: "#888", fontSize: 18, cursor: "pointer"
-            }}>✕</button>
+            <button onClick={closePopup} style={{ background: "none", border: "none", color: "#888", fontSize: 18, cursor: "pointer" }}>✕</button>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px" }}>
@@ -428,8 +388,7 @@ export default function MyCalendar() {
             <div style={{ position: "relative" }}>
               <div onClick={() => setShowColorPicker(v => !v)} style={{
                 width: 24, height: 24, borderRadius: "50%",
-                background: popup.color, cursor: "pointer",
-                border: "2px solid #555",
+                background: popup.color, cursor: "pointer", border: "2px solid #555",
               }} />
               {showColorPicker && (
                 <div style={{
@@ -508,8 +467,7 @@ export default function MyCalendar() {
           <div style={{ padding: "0 14px 14px", display: "flex", justifyContent: "flex-end" }}>
             <button onClick={handleAddEvent} style={{
               background: "#3b6ef8", border: "none", color: "#fff",
-              borderRadius: 8, padding: "8px 20px", fontSize: 13,
-              fontWeight: 700, cursor: "pointer",
+              borderRadius: 8, padding: "8px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer",
             }}>저장</button>
           </div>
         </div>

@@ -106,7 +106,7 @@ function PlanCard({ plan, onClick, onDelete }) {
   );
 }
 
-function DetailPage({ plan, onBack }) {
+function DetailPage({ plan, onBack, onGoHome, onInvite }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", scrollbarWidth: "none" }}>
       {/* Top bar */}
@@ -123,14 +123,7 @@ function DetailPage({ plan, onBack }) {
           }}>←</button>
           <span style={{ fontSize: 18, fontWeight: 700 }}>{plan.title}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button style={{
-            background: "#3b6ef8", color: "#fff", border: "none",
-            borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-          }}>🔗 공유하기</button>
-          <span style={{ color: "#888", fontSize: 13 }}>ENG | KOR</span>
-          <span style={{ color: "#888", fontSize: 16 }}>ℹ️</span>
-        </div>
+        
       </div>
 
       {/* Content */}
@@ -181,11 +174,12 @@ function DetailPage({ plan, onBack }) {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button style={{
+              <button onClick={onGoHome} style={{
                 flex: 1, background: "#3b6ef8", color: "#fff", border: "none",
                 borderRadius: 10, padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: "pointer",
               }}>모임 보러가기 →</button>
-              <button style={{
+              <button onClick={onInvite} style={{
+                background: "#1a1a1a", color: "#aaa",
                 background: "#1a1a1a", color: "#aaa",
                 border: "1px solid #2a2a2a",
                 borderRadius: 10, padding: "13px 16px", fontSize: 13, cursor: "pointer",
@@ -280,6 +274,10 @@ export default function History() {
 const [plans, setPlans] = useState(INIT_PLANS);
 const [deleteTarget, setDeleteTarget] = useState(null);
 const [selectedPlan, setSelectedPlan] = useState(null);
+const [showInviteModal, setShowInviteModal] = useState(false);
+const [inviteEmail, setInviteEmail] = useState("");
+const [inviteError, setInviteError] = useState("");
+const [inviteSent, setInviteSent] = useState(false);
 const allPlans = [...plans, ...userPlans];
 
   const filters = ["전체", "생성한 플랜", "참여한 플랜"];
@@ -298,7 +296,19 @@ const allPlans = [...plans, ...userPlans];
     if (label === "내 일정") { navigate("/mycalendar"); return; }
     if (label === "마이페이지") { navigate("/mypage"); return; }
   };
-
+const handleInvite = () => {
+  if (!inviteEmail.trim()) {
+    setInviteError("이메일을 입력해주세요.");
+    return;
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(inviteEmail.trim())) {
+    setInviteError("올바른 이메일 형식을 입력해주세요.");
+    return;
+  }
+  setInviteSent(true);
+  setInviteError("");
+};
   const confirmDelete = () => {
   setPlans(prev => prev.filter(p => p.id !== deleteTarget));
   removePlan(deleteTarget);
@@ -313,7 +323,73 @@ const allPlans = [...plans, ...userPlans];
       fontFamily: "'Noto Sans KR', sans-serif",
       overflow: "hidden",
     }}>
+{/* 초대 모달 */}
+{showInviteModal && (
+  <div style={{
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+    zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center"
+  }} onClick={() => { setShowInviteModal(false); setInviteEmail(""); setInviteError(""); setInviteSent(false); }}>
+    <div onClick={e => e.stopPropagation()} style={{
+      background: "#1a1a1a", borderRadius: 14, padding: "28px",
+      minWidth: 360, border: "1px solid #2a2a2a",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <p style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>멤버 초대</p>
+        <button onClick={() => { setShowInviteModal(false); setInviteEmail(""); setInviteError(""); setInviteSent(false); }} style={{
+          background: "none", border: "none", color: "#888", fontSize: 20, cursor: "pointer"
+        }}>✕</button>
+      </div>
+      <p style={{ fontSize: 13, color: "#888", marginBottom: 20 }}>
+        초대할 멤버의 이메일을 입력하세요.
+      </p>
 
+      {inviteSent ? (
+        <div style={{ textAlign: "center", padding: "20px 0" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+          <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 8 }}>초대 완료!</p>
+          <p style={{ fontSize: 13, color: "#888", marginBottom: 20 }}>{inviteEmail}로 초대를 보냈어요.</p>
+          <button onClick={() => { setInviteEmail(""); setInviteSent(false); }} style={{
+            background: "#3b6ef8", color: "#fff", border: "none",
+            borderRadius: 8, padding: "10px 20px", fontSize: 14,
+            fontWeight: 600, cursor: "pointer",
+          }}>추가 초대하기</button>
+        </div>
+      ) : (
+        <>
+          <input
+            value={inviteEmail}
+            onChange={e => { setInviteEmail(e.target.value); setInviteError(""); }}
+            onKeyDown={e => e.key === "Enter" && handleInvite()}
+            placeholder="example@email.com"
+            autoFocus
+            type="email"
+            style={{
+              width: "100%", background: "#222222",
+              border: `1px solid ${inviteError ? "#e05555" : "#2a2a2a"}`,
+              borderRadius: 8, padding: "12px 14px", fontSize: 14,
+              color: "#fff", outline: "none", boxSizing: "border-box",
+              fontFamily: "'Noto Sans KR', sans-serif", marginBottom: 6,
+            }}
+          />
+          {inviteError && <p style={{ fontSize: 12, color: "#e05555", marginBottom: 12 }}>{inviteError}</p>}
+          {!inviteError && <div style={{ marginBottom: 12 }} />}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => { setShowInviteModal(false); setInviteEmail(""); setInviteError(""); }} style={{
+              flex: 1, background: "#222222", border: "1px solid #2a2a2a",
+              color: "#aaa", borderRadius: 8, padding: "12px 0",
+              fontSize: 14, cursor: "pointer"
+            }}>취소</button>
+            <button onClick={handleInvite} style={{
+              flex: 1, background: "#3b6ef8", border: "none",
+              color: "#fff", borderRadius: 8, padding: "12px 0",
+              fontSize: 14, fontWeight: 700, cursor: "pointer"
+            }}>초대 보내기</button>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+)}
       {/* 삭제 확인 모달 */}
       {deleteTarget && (
         <div style={{
@@ -398,7 +474,7 @@ const allPlans = [...plans, ...userPlans];
 
       {/* 상세 페이지 or 목록 */}
       {selectedPlan ? (
-        <DetailPage plan={selectedPlan} onBack={() => setSelectedPlan(null)} />
+        <DetailPage plan={selectedPlan} onBack={() => setSelectedPlan(null)} onGoHome={() => navigate("/home")} onInvite={() => setShowInviteModal(true)} />
       ) : (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", scrollbarWidth: "none" }}>
           {/* Top bar */}
@@ -415,14 +491,7 @@ const allPlans = [...plans, ...userPlans];
               }}>☰</button>
               <span style={{ fontSize: 18, fontWeight: 700 }}>참여 기록</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button style={{
-                background: "#3b6ef8", color: "#fff", border: "none",
-                borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}>🔗 공유하기</button>
-              <span style={{ color: "#888", fontSize: 13 }}>ENG | KOR</span>
-              <span style={{ color: "#888", fontSize: 16 }}>ℹ️</span>
-            </div>
+            
           </div>
 
           {/* 필터 탭 */}

@@ -43,7 +43,7 @@ function Section({ title, children }) {
   );
 }
 
-function Row({ label, value, action, actionColor = "#3b6ef8", toggle, onToggle, last }) {
+function Row({ label, value, action, actionColor = "#3b6ef8", toggle, onToggle, onClick, last }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -54,7 +54,7 @@ function Row({ label, value, action, actionColor = "#3b6ef8", toggle, onToggle, 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {value && <span style={{ fontSize: 14, color: "#666" }}>{value}</span>}
         {action && (
-          <span onClick={() => alert(`${label} 기능 준비 중입니다!`)} style={{
+          <span onClick={onClick} style={{
             fontSize: 14, color: actionColor, cursor: "pointer", fontWeight: 500
           }}>{action}</span>
         )}
@@ -69,12 +69,20 @@ function Row({ label, value, action, actionColor = "#3b6ef8", toggle, onToggle, 
 export default function Settings() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("설정");
-  const [twoFactor, setTwoFactor] = useState(true);
   const [inviteAlarm, setInviteAlarm] = useState(true);
   const [voteAlarm, setVoteAlarm] = useState(false);
   const [scheduleAlarm, setScheduleAlarm] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [timeFormat, setTimeFormat] = useState("12시간");
+  const [theme, setTheme] = useState("다크");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
   const { user, logout } = useUser();
+
   const handleNavClick = (label) => {
     setActiveNav(label);
     setSidebarOpen(false);
@@ -84,13 +92,110 @@ export default function Settings() {
     if (label === "마이페이지") { navigate("/mypage"); return; }
   };
 
+  const handlePasswordChange = () => {
+    setPasswordError("");
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setPasswordError("모든 항목을 입력해주세요."); return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError("비밀번호는 6자 이상이어야 합니다."); return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("새 비밀번호가 일치하지 않습니다."); return;
+    }
+    setPasswordSuccess(true);
+    setTimeout(() => {
+      setShowPasswordModal(false);
+      setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+      setPasswordSuccess(false);
+    }, 1500);
+  };
+
+  const handleTimeFormat = () => {
+    setTimeFormat(prev => prev === "12시간" ? "24시간" : "12시간");
+  };
+
+  const handleTheme = () => {
+    setTheme(prev => prev === "다크" ? "라이트" : "다크");
+  };
+
+  const bg = theme === "다크" ? "#111111" : "#f5f5f5";
+  const cardBg = theme === "다크" ? "#1a1a1a" : "#ffffff";
+  const border = theme === "다크" ? "#2a2a2a" : "#e0e0e0";
+  const textMain = theme === "다크" ? "#fff" : "#111";
+  const textSub = theme === "다크" ? "#ddd" : "#333";
+  const textMuted = theme === "다크" ? "#666" : "#999";
+
   return (
     <div className="page-fade" style={{
       display: "flex", height: "100vh", width: "100vw",
-      background: "#111111", color: "#fff",
+      background: bg, color: textMain,
       fontFamily: "'Noto Sans KR', sans-serif",
       overflow: "hidden",
+      transition: "background 0.3s, color 0.3s",
     }}>
+
+      {/* 비밀번호 변경 모달 */}
+      {showPasswordModal && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+          zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center"
+        }} onClick={() => { setShowPasswordModal(false); setPasswordError(""); setPasswordSuccess(false); }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: cardBg, borderRadius: 14, padding: "28px",
+            minWidth: 340, border: `1px solid ${border}`,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <p style={{ fontSize: 16, fontWeight: 700, color: textMain }}>비밀번호 변경</p>
+              <button onClick={() => { setShowPasswordModal(false); setPasswordError(""); setPasswordSuccess(false); }} style={{
+                background: "none", border: "none", color: "#888", fontSize: 20, cursor: "pointer"
+              }}>✕</button>
+            </div>
+
+            {passwordSuccess ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                <p style={{ fontSize: 15, fontWeight: 700, color: textMain }}>비밀번호가 변경되었습니다!</p>
+              </div>
+            ) : (
+              <>
+                {[
+                  { label: "현재 비밀번호", val: oldPassword, set: setOldPassword },
+                  { label: "새 비밀번호", val: newPassword, set: setNewPassword },
+                  { label: "새 비밀번호 확인", val: confirmPassword, set: setConfirmPassword },
+                ].map(({ label, val, set }) => (
+                  <div key={label} style={{ marginBottom: 14 }}>
+                    <label style={{ display: "block", fontSize: 13, color: "#888", marginBottom: 6 }}>{label}</label>
+                    <input
+                      type="password"
+                      value={val}
+                      onChange={e => { set(e.target.value); setPasswordError(""); }}
+                      style={{
+                        width: "100%", background: "#222222", border: `1px solid ${passwordError ? "#e05555" : border}`,
+                        borderRadius: 8, padding: "11px 14px", fontSize: 14,
+                        color: textMain, outline: "none", boxSizing: "border-box",
+                        fontFamily: "'Noto Sans KR', sans-serif",
+                      }}
+                    />
+                  </div>
+                ))}
+                {passwordError && <p style={{ fontSize: 12, color: "#e05555", marginBottom: 12 }}>{passwordError}</p>}
+                <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                  <button onClick={() => { setShowPasswordModal(false); setPasswordError(""); }} style={{
+                    flex: 1, background: "#222222", border: `1px solid ${border}`,
+                    color: "#aaa", borderRadius: 8, padding: "12px 0", fontSize: 14, cursor: "pointer"
+                  }}>취소</button>
+                  <button onClick={handlePasswordChange} style={{
+                    flex: 1, background: "#3b6ef8", border: "none",
+                    color: "#fff", borderRadius: 8, padding: "12px 0",
+                    fontSize: 14, fontWeight: 700, cursor: "pointer"
+                  }}>변경</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {sidebarOpen && (
         <div onClick={() => setSidebarOpen(false)} className="mobile-overlay" style={{
@@ -100,8 +205,8 @@ export default function Settings() {
 
       {/* Sidebar */}
       <div className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} style={{
-        width: 180, background: "#111111",
-        borderRight: "1px solid #2a2a2a",
+        width: 180, background: bg,
+        borderRight: `1px solid ${border}`,
         display: "flex", flexDirection: "column",
         padding: "24px 0", flexShrink: 0,
         transition: "transform 0.3s ease", zIndex: 20,
@@ -111,9 +216,11 @@ export default function Settings() {
           background: "none", border: "none", color: "#888", fontSize: 20, cursor: "pointer"
         }}>✕</button>
 
-        <div onClick={() => navigate("/home")} style={{ padding: "0 20px 28px", fontSize: 20, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
-  상대성 시간
-</div>
+        <div onClick={() => navigate("/home")} style={{
+          padding: "0 20px 28px", fontSize: 20, fontWeight: 700, color: textMain, cursor: "pointer"
+        }}>
+          상대성 시간
+        </div>
 
         <nav style={{ flex: 1 }}>
           {NAV_ITEMS.map((item) => (
@@ -136,7 +243,7 @@ export default function Settings() {
           display: "flex", alignItems: "center", gap: 8,
           padding: "11px 20px", color: "#fff", fontSize: 14, cursor: "pointer",
           background: "#222222", borderRadius: 8, margin: "2px 8px",
-          borderTop: "1px solid #2a2a2a",
+          borderTop: `1px solid ${border}`,
         }}>
           <span>⚙️</span> 설정
         </div>
@@ -147,59 +254,43 @@ export default function Settings() {
 
         {/* Top bar */}
         <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "16px 24px", borderBottom: "1px solid #2a2a2a", flexShrink: 0,
+          display: "flex", alignItems: "center",
+          padding: "16px 24px", borderBottom: `1px solid ${border}`, flexShrink: 0,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{
-              display: "none", background: "none", border: "none",
-              color: "#fff", fontSize: 22, cursor: "pointer", padding: "0 4px"
-            }}>☰</button>
-            <span style={{ fontSize: 18, fontWeight: 700 }}>설정</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button style={{
-              background: "#3b6ef8", color: "#fff", border: "none",
-              borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600,
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-            }}>🔗 공유하기</button>
-            <span style={{ color: "#888", fontSize: 13 }}>ENG | KOR</span>
-            <span style={{ color: "#888", fontSize: 16, cursor: "pointer" }}>ℹ️</span>
-          </div>
+          <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{
+            display: "none", background: "none", border: "none",
+            color: textMain, fontSize: 22, cursor: "pointer", padding: "0 4px"
+          }}>☰</button>
+          <span style={{ fontSize: 18, fontWeight: 700, color: textMain }}>설정</span>
         </div>
 
         {/* Settings content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "32px 40px" }}>
 
-          <Section title="계정">
-            <Row label="이메일" value={user?.email || "이메일 없음"} last={false} />
-            <Row label="비밀번호 변경" action="변경" last={false} />
-            <Row label="2단계 인증" value={twoFactor ? "켜짐" : "꺼짐"}
-              toggle={twoFactor} onToggle={setTwoFactor} last={true} />
-          </Section>
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: textMain, marginBottom: 12 }}>계정</div>
+            <div style={{ background: cardBg, borderRadius: 12, border: `1px solid ${border}`, overflow: "hidden" }}>
+              <Row label="이메일" value={user?.email || "이메일 없음"} last={false} />
+              <Row label="비밀번호 변경" action="변경" onClick={() => setShowPasswordModal(true)} last={true} />
+            </div>
+          </div>
 
-          <Section title="연동">
-            <Row label="Google" value={user?.email || "연결 안됨"} last={false} />
-            <Row label="Apple" action="연결" last={true} />
-          </Section>
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: textMain, marginBottom: 12 }}>알림</div>
+            <div style={{ background: cardBg, borderRadius: 12, border: `1px solid ${border}`, overflow: "hidden" }}>
+              <Row label="초대 알림" toggle={inviteAlarm} onToggle={setInviteAlarm} last={false} />
+              <Row label="투표 알림" toggle={voteAlarm} onToggle={setVoteAlarm} last={false} />
+              <Row label="일정 확정 알림" toggle={scheduleAlarm} onToggle={setScheduleAlarm} last={true} />
+            </div>
+          </div>
 
-          <Section title="보안">
-            <Row label="로그인 기기 관리" action="관리" last={false} />
-            <Row label="로그인 기록" action="보기" last={false} />
-            <Row label="API 키" action="관리" last={true} />
-          </Section>
-
-          <Section title="알림">
-            <Row label="초대 알림" toggle={inviteAlarm} onToggle={setInviteAlarm} last={false} />
-            <Row label="투표 알림" toggle={voteAlarm} onToggle={setVoteAlarm} last={false} />
-            <Row label="일정 확정 알림" toggle={scheduleAlarm} onToggle={setScheduleAlarm} last={true} />
-          </Section>
-
-          <Section title="환경">
-            <Row label="언어" value="한국어" action="변경" last={false} />
-            <Row label="시간 형식" value="12시간" action="변경" last={false} />
-            <Row label="테마" value="다크" action="변경" last={true} />
-          </Section>
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: textMain, marginBottom: 12 }}>환경</div>
+            <div style={{ background: cardBg, borderRadius: 12, border: `1px solid ${border}`, overflow: "hidden" }}>
+              <Row label="시간 형식" value={timeFormat} action="변경" onClick={handleTimeFormat} last={false} />
+              <Row label="테마" value={theme} action="변경" onClick={handleTheme} last={true} />
+            </div>
+          </div>
 
           <button onClick={() => { logout(); navigate("/"); }} style={{
             width: "100%", background: "transparent", border: "1px solid #e84040",

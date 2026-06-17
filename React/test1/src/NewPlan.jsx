@@ -82,7 +82,110 @@ function TimeInput({ value, onChange, placeholder }) {
     </div>
   );
 }
+function DatePicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(new Date());
 
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const selected = value ? new Date(value) : null;
+
+  const handleSelect = (day) => {
+    const d = new Date(year, month, day);
+    const str = `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,'0')}. ${String(d.getDate()).padStart(2,'0')}`;
+    onChange(str);
+    setOpen(false);
+  };
+
+  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
+
+  const isSelected = (day) => {
+    if (!selected) return false;
+    return selected.getFullYear() === year && selected.getMonth() === month && selected.getDate() === day;
+  };
+
+  const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+  return (
+    <div style={{ position: "relative", width: "100%" }}>
+      <div onClick={() => setOpen(v => !v)} style={{
+        ...inputStyle, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <span style={{ color: value ? "#fff" : "#555" }}>{value || "년. 월. 일."}</span>
+        <span style={{ color: "#555", fontSize: 14 }}>📅</span>
+      </div>
+
+      {open && (
+        <div onClick={e => e.stopPropagation()} style={{
+          position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 100,
+          background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 12,
+          padding: 16, width: 280, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        }}>
+          {/* 헤더 */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <button onClick={prevMonth} style={{
+              background: "none", border: "none", color: "#888", fontSize: 16, cursor: "pointer"
+            }}>◀</button>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
+              {year}년 {month + 1}월
+            </span>
+            <button onClick={nextMonth} style={{
+              background: "none", border: "none", color: "#888", fontSize: 16, cursor: "pointer"
+            }}>▶</button>
+          </div>
+
+          {/* 요일 헤더 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 6 }}>
+            {DAYS.map(d => (
+              <div key={d} style={{ textAlign: "center", fontSize: 11, color: "#666", padding: "4px 0" }}>{d}</div>
+            ))}
+          </div>
+
+          {/* 날짜 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+            {Array(firstDay).fill(null).map((_, i) => <div key={`e${i}`} />)}
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+              const today = new Date();
+              const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+              const sel = isSelected(day);
+              return (
+                <div key={day} onClick={() => handleSelect(day)} style={{
+                  textAlign: "center", padding: "6px 0", borderRadius: 6,
+                  fontSize: 13, cursor: "pointer",
+                  background: sel ? "#3b6ef8" : "transparent",
+                  color: sel ? "#fff" : isToday ? "#3b6ef8" : "#ccc",
+                  fontWeight: sel || isToday ? 700 : 400,
+                  border: isToday && !sel ? "1px solid #3b6ef8" : "1px solid transparent",
+                }}
+                  onMouseEnter={e => { if (!sel) e.currentTarget.style.background = "#222"; }}
+                  onMouseLeave={e => { if (!sel) e.currentTarget.style.background = "transparent"; }}
+                >{day}</div>
+              );
+            })}
+          </div>
+
+          {/* 오늘 버튼 */}
+          <div style={{ marginTop: 10, textAlign: "center" }}>
+            <button onClick={() => {
+              const today = new Date();
+              setViewDate(today);
+              handleSelect(today.getDate());
+            }} style={{
+              background: "none", border: "1px solid #2a2a2a", color: "#888",
+              borderRadius: 6, padding: "4px 12px", fontSize: 12, cursor: "pointer",
+            }}>오늘</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 export default function NewPlan() {
   const { addBlock, addPlan } = usePlan();
   const navigate = useNavigate();
@@ -170,7 +273,7 @@ export default function NewPlan() {
       memo: "",
     });
 
-    alert(`"${title}" 모임이 생성되었습니다!`);
+    
     navigate("/home");
   };
 
@@ -253,14 +356,7 @@ export default function NewPlan() {
             }}>☰</button>
             <span style={{ fontSize: 18, fontWeight: 700 }}>새 모임 만들기</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button style={{
-              background: "#3b6ef8", color: "#fff", border: "none",
-              borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-            }}>🔗 공유하기</button>
-            <span style={{ color: "#888", fontSize: 13 }}>ENG | KOR</span>
-            <span style={{ color: "#888", fontSize: 16 }}>ℹ️</span>
-          </div>
+          
         </div>
 
         {/* Content */}
@@ -276,12 +372,10 @@ export default function NewPlan() {
 
             <div style={{ display: "flex", gap: 16, marginTop: 20 }}>
               <Field label="시작 날짜" icon="📅">
-                <input value={startDate} onChange={e => setStartDate(e.target.value)}
-                  placeholder="년. 월. 일." style={{ ...inputStyle, width: "100%" }} />
+                <DatePicker value={startDate} onChange={setStartDate} />
               </Field>
               <Field label="종료 날짜" icon="📅">
-                <input value={endDate} onChange={e => setEndDate(e.target.value)}
-                  placeholder="년. 월. 일." style={{ ...inputStyle, width: "100%" }} />
+                <DatePicker value={endDate} onChange={setEndDate} />
               </Field>
             </div>
 
