@@ -31,22 +31,7 @@ function Register({ onBack }) {
               <span style={{ color: "#555", fontSize: 13 }}>또는</span>
               <div style={{ flex: 1, height: 1, background: "#2e2e2e" }} />
             </div>
-            <div style={{ display: "flex", justifyContent: "center", gap: 14 }}>
-              {[
-                { title: "카카오", bg: "#FEE500", svg: <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3C6.582 3 3 5.91 3 9.5c0 2.282 1.523 4.284 3.832 5.427l-.977 3.632a.25.25 0 0 0 .373.28L10.63 16.4A10.1 10.1 0 0 0 11 16.4c4.418 0 8-2.91 8-6.5S15.418 3 11 3Z" fill="#1A1A1A"/></svg> },
-                { title: "페이스북", bg: "#1877F2", svg: <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M12.5 11.5h2l.5-2.5h-2.5V7.5c0-.7.2-1.5 1.5-1.5H15V3.5S13.8 3 12.7 3C10.1 3 8.5 4.5 8.5 7.3V9H6.5v2.5H8.5V19h3v-7.5h1.5l-.5.5Z" fill="white"/></svg> },
-                { title: "구글", bg: "#ffffff", svg: <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path fill="#EA4335" d="M24 9.5c3.14 0 5.95 1.08 8.17 2.85l6.1-6.1C34.46 3.09 29.48 1 24 1 14.82 1 7.07 6.48 3.64 14.22l7.1 3.48C12.4 12.27 17.73 9.5 24 9.5z"/><path fill="#4285F4" d="M46.52 24.5c0-1.64-.15-3.22-.43-4.75H24v9h12.7c-.55 2.96-2.2 5.48-4.67 7.17l7.18 3.52C43.1 36.06 46.52 30.73 46.52 24.5z"/><path fill="#FBBC05" d="M10.74 28.3A14.6 14.6 0 0 1 9.5 24c0-1.5.26-2.95.74-4.3l-7.1-3.48A23.93 23.93 0 0 0 0 24c0 3.86.92 7.5 2.56 10.72l8.18-6.42z"/><path fill="#34A853" d="M24 47c5.48 0 10.08-1.81 13.44-4.92l-7.18-3.52c-1.8 1.21-4.1 1.94-6.26 1.94-6.27 0-11.6-2.77-13.26-8.2l-8.18 6.42C7.07 41.52 14.82 47 24 47z"/></svg> },
-                { title: "네이버", bg: "#03C75A", svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" fill="white"/></svg> },
-                { title: "애플", bg: "#1c1c1e", svg: <svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M14.8 10.6c0-2.2 1.8-3.2 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.7 2.2-1.6 2.7-.4 6.8 1.1 9 .7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7 1.3 0 1.7.7 2.9.7 1.2 0 2-1.1 2.7-2.2.9-1.2 1.2-2.4 1.2-2.5-.1 0-2.3-.9-2.3-3.7ZM12.5 3.6c.6-.7 1-1.7.9-2.6-.9 0-1.9.6-2.5 1.3-.6.6-1.1 1.6-.9 2.5 1 .1 1.9-.5 2.5-1.2Z" fill="white"/></svg> },
-              ].map(({ title, bg, svg }) => (
-                <button key={title} onClick={() => setStep(2)} style={{
-                  width: 44, height: 44, borderRadius: "50%",
-                  background: bg, border: title === "애플" ? "1px solid #3a3a3a" : "none",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer",
-                }}>{svg}</button>
-              ))}
-            </div>
+            
             <p style={{ textAlign: "center", marginTop: 24, fontSize: 13, color: "#888" }}>
               이미 계정이 있나요?{" "}
               <span onClick={onBack} style={{ color: "#4f8ef7", cursor: "pointer" }}>로그인</span>
@@ -139,9 +124,13 @@ function Register({ onBack }) {
             <p style={{ color: "#aaa", fontSize: 14, marginBottom: 32 }}>
               상대성 시간에 오신 걸 환영해요, {name}님!
             </p>
-            <button onClick={() => {
-              register(name, email);
-              navigate('/home');
+            <button onClick={async () => {
+              const result = await register(name, email, password);
+              if (result.success) {
+                navigate('/home');
+              } else {
+                alert(result.message);
+              }
             }} style={{
               width: "100%", background: "#4f8ef7", color: "#fff",
               border: "none", borderRadius: 10, padding: "15px 0",
@@ -213,16 +202,20 @@ function Login() {
     return <Register onBack={() => setShowRegister(false)} />;
   }
 
-  const handleLogin = () => {
-    const id = userId.trim();
-    const pw = password.trim();
-    if (!id || !pw) {
-      alert('아이디와 비밀번호를 입력해주세요.');
-      return;
-    }
-    login(id, pw);
+  const handleLogin = async () => {
+  const id = userId.trim();
+  const pw = password.trim();
+  if (!id || !pw) {
+    alert('아이디와 비밀번호를 입력해주세요.');
+    return;
+  }
+  const result = await login(id, pw);
+  if (result.success) {
     navigate('/home');
-  };
+  } else {
+    alert(result.message);
+  }
+};
 
   const handleUserIdKeyDown = (e) => {
     if (e.key === 'Enter') passwordRef.current.focus();
@@ -232,9 +225,7 @@ function Login() {
     if (e.key === 'Enter') handleLogin();
   };
 
-  const handleSocialLogin = (title) => {
-    alert(title + ' 로그인을 시도합니다.');
-  };
+  
 
   return (
     <div style={{
@@ -310,27 +301,12 @@ function Login() {
           display: "flex", alignItems: "center",
           justifyContent: "center", marginTop: 20
         }}>
-          <a href="#" style={{ color: "#aaaaaa", fontSize: "0.82rem", textDecoration: "none", padding: "0 14px" }}>아이디 찾기</a>
+          <span style={{ color: "#aaaaaa", fontSize: "0.82rem", textDecoration: "none", padding: "0 14px", cursor: "pointer" }}>아이디 찾기</span>
           <span style={{ color: "#3a3a3a", fontSize: "0.82rem" }}>|</span>
-          <a href="#" style={{ color: "#aaaaaa", fontSize: "0.82rem", textDecoration: "none", padding: "0 14px" }}>비밀번호 찾기</a>
+          <span style={{ color: "#aaaaaa", fontSize: "0.82rem", textDecoration: "none", padding: "0 14px", cursor: "pointer" }}>비밀번호 찾기</span>
         </div>
 
-        <div style={{ marginTop: 36, display: "flex", justifyContent: "center", gap: 14 }}>
-          {[
-            { title: "카카오", bg: "#FEE500", svg: <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3C6.582 3 3 5.91 3 9.5c0 2.282 1.523 4.284 3.832 5.427l-.977 3.632a.25.25 0 0 0 .373.28L10.63 16.4A10.1 10.1 0 0 0 11 16.4c4.418 0 8-2.91 8-6.5S15.418 3 11 3Z" fill="#1A1A1A"/></svg> },
-            { title: "페이스북", bg: "#1877F2", svg: <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M12.5 11.5h2l.5-2.5h-2.5V7.5c0-.7.2-1.5 1.5-1.5H15V3.5S13.8 3 12.7 3C10.1 3 8.5 4.5 8.5 7.3V9H6.5v2.5H8.5V19h3v-7.5h1.5l-.5.5Z" fill="white"/></svg> },
-            { title: "구글", bg: "#ffffff", svg: <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path fill="#EA4335" d="M24 9.5c3.14 0 5.95 1.08 8.17 2.85l6.1-6.1C34.46 3.09 29.48 1 24 1 14.82 1 7.07 6.48 3.64 14.22l7.1 3.48C12.4 12.27 17.73 9.5 24 9.5z"/><path fill="#4285F4" d="M46.52 24.5c0-1.64-.15-3.22-.43-4.75H24v9h12.7c-.55 2.96-2.2 5.48-4.67 7.17l7.18 3.52C43.1 36.06 46.52 30.73 46.52 24.5z"/><path fill="#FBBC05" d="M10.74 28.3A14.6 14.6 0 0 1 9.5 24c0-1.5.26-2.95.74-4.3l-7.1-3.48A23.93 23.93 0 0 0 0 24c0 3.86.92 7.5 2.56 10.72l8.18-6.42z"/><path fill="#34A853" d="M24 47c5.48 0 10.08-1.81 13.44-4.92l-7.18-3.52c-1.8 1.21-4.1 1.94-6.26 1.94-6.27 0-11.6-2.77-13.26-8.2l-8.18 6.42C7.07 41.52 14.82 47 24 47z"/></svg> },
-            { title: "네이버", bg: "#03C75A", svg: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" fill="white"/></svg> },
-            { title: "애플", bg: "#1c1c1e", svg: <svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M14.8 10.6c0-2.2 1.8-3.2 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.4.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.7 2.2-1.6 2.7-.4 6.8 1.1 9 .7 1.1 1.6 2.3 2.8 2.2 1.1 0 1.5-.7 2.9-.7 1.3 0 1.7.7 2.9.7 1.2 0 2-1.1 2.7-2.2.9-1.2 1.2-2.4 1.2-2.5-.1 0-2.3-.9-2.3-3.7ZM12.5 3.6c.6-.7 1-1.7.9-2.6-.9 0-1.9.6-2.5 1.3-.6.6-1.1 1.6-.9 2.5 1 .1 1.9-.5 2.5-1.2Z" fill="white"/></svg> },
-          ].map(({ title, bg, svg }) => (
-            <button key={title} onClick={() => handleSocialLogin(title)} style={{
-              width: 44, height: 44, borderRadius: "50%",
-              background: bg, border: title === "애플" ? "1px solid #3a3a3a" : "none",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer",
-            }}>{svg}</button>
-          ))}
-        </div>
+        
       </div>
     </div>
   );

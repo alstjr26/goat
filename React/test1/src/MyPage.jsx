@@ -14,11 +14,18 @@ export default function MyPage() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("마이페이지");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useUser();
+  const { user, setUser } = useUser();
+const [showNicknameModal, setShowNicknameModal] = useState(false);
+const [newNickname, setNewNickname] = useState("");
   const { userPlans } = usePlan();
   const createdCount = userPlans.filter(p => p.isMine).length;
   const joinedCount = userPlans.filter(p => !p.isMine).length;
-
+const handleNicknameChange = () => {
+    if (!newNickname.trim()) return;
+    setUser(prev => ({ ...prev, name: newNickname.trim() }));
+    setShowNicknameModal(false);
+    setNewNickname("");
+  };
   const handleNavClick = (label) => {
     setActiveNav(label);
     setSidebarOpen(false);
@@ -109,7 +116,49 @@ export default function MyPage() {
 
         {/* Content */}
         <div style={{ padding: "24px 32px", maxWidth: 900 }}>
-
+          {/* 닉네임 변경 모달 */}
+{showNicknameModal && (
+  <div style={{
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+    zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center"
+  }} onClick={() => { setShowNicknameModal(false); setNewNickname(""); }}>
+    <div onClick={e => e.stopPropagation()} style={{
+      background: "#1a1a1a", borderRadius: 14, padding: "28px",
+      minWidth: 340, border: "1px solid #2a2a2a",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <p style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>닉네임 변경</p>
+        <button onClick={() => { setShowNicknameModal(false); setNewNickname(""); }} style={{
+          background: "none", border: "none", color: "#888", fontSize: 20, cursor: "pointer"
+        }}>✕</button>
+      </div>
+      <input
+        value={newNickname}
+        onChange={e => setNewNickname(e.target.value)}
+        onKeyDown={e => e.key === "Enter" && handleNicknameChange()}
+        placeholder={user?.name || "닉네임을 입력하세요"}
+        autoFocus
+        style={{
+          width: "100%", background: "#222222", border: "1px solid #2a2a2a",
+          borderRadius: 8, padding: "12px 14px", fontSize: 14,
+          color: "#fff", outline: "none", boxSizing: "border-box",
+          fontFamily: "'Noto Sans KR', sans-serif", marginBottom: 16,
+        }}
+      />
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={() => { setShowNicknameModal(false); setNewNickname(""); }} style={{
+          flex: 1, background: "#222222", border: "1px solid #2a2a2a",
+          color: "#aaa", borderRadius: 8, padding: "12px 0", fontSize: 14, cursor: "pointer"
+        }}>취소</button>
+        <button onClick={handleNicknameChange} style={{
+          flex: 1, background: "#3b6ef8", border: "none",
+          color: "#fff", borderRadius: 8, padding: "12px 0",
+          fontSize: 14, fontWeight: 700, cursor: "pointer"
+        }}>변경</button>
+      </div>
+    </div>
+  </div>
+)}
           {/* 프로필 카드 */}
           <div style={{
             background: "#1a1a1a", borderRadius: 14, padding: "24px",
@@ -123,17 +172,21 @@ export default function MyPage() {
                 alignItems: "center", justifyContent: "center",
                 fontSize: 32,
               }}>👤</div>
-              <div onClick={() => alert("프로필 사진 변경 준비 중!")} style={{
-                position: "absolute", bottom: 0, right: 0,
-                width: 24, height: 24, borderRadius: "50%",
-                background: "#222222", border: "2px solid #111",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 12, cursor: "pointer",
-              }}>✏️</div>
+              
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
-                {user?.name || "사용자"}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>
+                  {user?.name || "사용자"}
+                </div>
+                <button onClick={() => setShowNicknameModal(true)} style={{
+                  background: "none", border: "none", color: "#888",
+                  fontSize: 13, cursor: "pointer", padding: "2px 6px",
+                  borderRadius: 4, transition: "color 0.15s",
+                }}
+                  onMouseEnter={e => e.currentTarget.style.color = "#3b6ef8"}
+                  onMouseLeave={e => e.currentTarget.style.color = "#888"}
+                >✏️</button>
               </div>
               <div style={{ fontSize: 14, color: "#888" }}>
                 {user?.email || "이메일 없음"}

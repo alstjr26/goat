@@ -27,21 +27,6 @@ function Toggle({ on, onChange }) {
   );
 }
 
-function Section({ title, children }) {
-  return (
-    <div style={{ marginBottom: 32 }}>
-      <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 12 }}>
-        {title}
-      </div>
-      <div style={{
-        background: "#1a1a1a", borderRadius: 12,
-        border: "1px solid #2a2a2a", overflow: "hidden"
-      }}>
-        {children}
-      </div>
-    </div>
-  );
-}
 
 function Row({ label, value, action, actionColor = "#3b6ef8", toggle, onToggle, onClick, last }) {
   return (
@@ -74,7 +59,7 @@ export default function Settings() {
   const [scheduleAlarm, setScheduleAlarm] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [timeFormat, setTimeFormat] = useState("12시간");
-  const [theme, setTheme] = useState("다크");
+  const [theme] = useState("다크");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -115,16 +100,12 @@ export default function Settings() {
     setTimeFormat(prev => prev === "12시간" ? "24시간" : "12시간");
   };
 
-  const handleTheme = () => {
-    setTheme(prev => prev === "다크" ? "라이트" : "다크");
-  };
+ 
 
   const bg = theme === "다크" ? "#111111" : "#f5f5f5";
   const cardBg = theme === "다크" ? "#1a1a1a" : "#ffffff";
   const border = theme === "다크" ? "#2a2a2a" : "#e0e0e0";
   const textMain = theme === "다크" ? "#fff" : "#111";
-  const textSub = theme === "다크" ? "#ddd" : "#333";
-  const textMuted = theme === "다크" ? "#666" : "#999";
 
   return (
     <div className="page-fade" style={{
@@ -288,7 +269,7 @@ export default function Settings() {
             <div style={{ fontSize: 16, fontWeight: 700, color: textMain, marginBottom: 12 }}>환경</div>
             <div style={{ background: cardBg, borderRadius: 12, border: `1px solid ${border}`, overflow: "hidden" }}>
               <Row label="시간 형식" value={timeFormat} action="변경" onClick={handleTimeFormat} last={false} />
-              <Row label="테마" value={theme} action="변경" onClick={handleTheme} last={true} />
+              
             </div>
           </div>
 

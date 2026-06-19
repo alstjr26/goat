@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
+import { apiCreateGroup } from "./api";
 
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
@@ -8,26 +9,6 @@ const NAV_ITEMS = [
   { label: "참여 기록", icon: "🕐" },
   { label: "마이페이지", icon: "👤" },
 ];
-
-function Tag({ label, onRemove, onClick }) {
-  return (
-    <span onClick={onClick} style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      background: "#222222", color: "#aaa",
-      borderRadius: 8, padding: "5px 12px",
-      fontSize: 13, fontWeight: 600,
-      border: "1px solid #2a2a2a",
-      cursor: onClick ? "pointer" : "default",
-      transition: "border-color 0.15s",
-    }}
-      onMouseEnter={e => { if(onClick) e.currentTarget.style.borderColor = "#3b6ef8"; }}
-      onMouseLeave={e => { if(onClick) e.currentTarget.style.borderColor = "#2a2a2a"; }}
-    >
-      {label}
-      <span onClick={e => { e.stopPropagation(); onRemove && onRemove(); }} style={{ cursor: "pointer", color: "#888", fontSize: 14 }}>✕</span>
-    </span>
-  );
-}
 
 function Field({ label, icon, children }) {
   return (
@@ -47,7 +28,7 @@ const inputStyle = {
   fontFamily: "'Noto Sans KR', sans-serif",
 };
 
-function TimeInput({ value, onChange, placeholder }) {
+function TimeInput({ value, onChange }) {
   const parts = value.split(":");
   const h = parts[0] || "";
   const m = parts[1] || "";
@@ -64,34 +45,23 @@ function TimeInput({ value, onChange, placeholder }) {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}>
-      <input
-        value={h}
-        onChange={e => handleHour(e.target.value)}
-        placeholder="시"
-        maxLength={2}
-        style={{ ...inputStyle, width: "100%", textAlign: "center" }}
-      />
+      <input value={h} onChange={e => handleHour(e.target.value)} placeholder="시" maxLength={2}
+        style={{ ...inputStyle, width: "100%", textAlign: "center" }} />
       <span style={{ color: "#555", fontSize: 18, fontWeight: 700, flexShrink: 0 }}>:</span>
-      <input
-        value={m}
-        onChange={e => handleMin(e.target.value)}
-        placeholder="분"
-        maxLength={2}
-        style={{ ...inputStyle, width: "100%", textAlign: "center" }}
-      />
+      <input value={m} onChange={e => handleMin(e.target.value)} placeholder="분" maxLength={2}
+        style={{ ...inputStyle, width: "100%", textAlign: "center" }} />
     </div>
   );
 }
+
 function DatePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
-
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-
   const selected = value ? new Date(value) : null;
 
   const handleSelect = (day) => {
@@ -100,9 +70,6 @@ function DatePicker({ value, onChange }) {
     onChange(str);
     setOpen(false);
   };
-
-  const prevMonth = () => setViewDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setViewDate(new Date(year, month + 1, 1));
 
   const isSelected = (day) => {
     if (!selected) return false;
@@ -127,27 +94,14 @@ function DatePicker({ value, onChange }) {
           background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 12,
           padding: 16, width: 280, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
         }}>
-          {/* 헤더 */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <button onClick={prevMonth} style={{
-              background: "none", border: "none", color: "#888", fontSize: 16, cursor: "pointer"
-            }}>◀</button>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
-              {year}년 {month + 1}월
-            </span>
-            <button onClick={nextMonth} style={{
-              background: "none", border: "none", color: "#888", fontSize: 16, cursor: "pointer"
-            }}>▶</button>
+            <button onClick={() => setViewDate(new Date(year, month - 1, 1))} style={{ background: "none", border: "none", color: "#888", fontSize: 16, cursor: "pointer" }}>◀</button>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{year}년 {month + 1}월</span>
+            <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: "none", border: "none", color: "#888", fontSize: 16, cursor: "pointer" }}>▶</button>
           </div>
-
-          {/* 요일 헤더 */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 6 }}>
-            {DAYS.map(d => (
-              <div key={d} style={{ textAlign: "center", fontSize: 11, color: "#666", padding: "4px 0" }}>{d}</div>
-            ))}
+            {DAYS.map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, color: "#666", padding: "4px 0" }}>{d}</div>)}
           </div>
-
-          {/* 날짜 */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
             {Array(firstDay).fill(null).map((_, i) => <div key={`e${i}`} />)}
             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
@@ -169,14 +123,8 @@ function DatePicker({ value, onChange }) {
               );
             })}
           </div>
-
-          {/* 오늘 버튼 */}
           <div style={{ marginTop: 10, textAlign: "center" }}>
-            <button onClick={() => {
-              const today = new Date();
-              setViewDate(today);
-              handleSelect(today.getDate());
-            }} style={{
+            <button onClick={() => { const t = new Date(); setViewDate(t); handleSelect(t.getDate()); }} style={{
               background: "none", border: "1px solid #2a2a2a", color: "#888",
               borderRadius: 6, padding: "4px 12px", fontSize: 12, cursor: "pointer",
             }}>오늘</button>
@@ -186,6 +134,7 @@ function DatePicker({ value, onChange }) {
     </div>
   );
 }
+
 export default function NewPlan() {
   const { addBlock, addPlan } = usePlan();
   const navigate = useNavigate();
@@ -196,10 +145,6 @@ export default function NewPlan() {
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState(":");
   const [endTime, setEndTime] = useState(":");
-  const [places, setPlaces] = useState([]);
-  const [placeInput, setPlaceInput] = useState("");
-  const [participants, setParticipants] = useState([]);
-  const [participantInput, setParticipantInput] = useState("");
 
   const handleNavClick = (label) => {
     setActiveNav(label);
@@ -210,27 +155,7 @@ export default function NewPlan() {
     if (label === "마이페이지") { navigate("/mypage"); return; }
   };
 
-  const addPlace = () => {
-    if (!placeInput.trim()) return;
-    setPlaces(prev => [...prev, placeInput.trim()]);
-    setPlaceInput("");
-  };
-
-  const removePlace = (i) => setPlaces(prev => prev.filter((_, idx) => idx !== i));
-
-  // 태그 클릭 시 입력창에 채우기
-  const fillPlaceInput = (p) => setPlaceInput(p);
-  const fillParticipantInput = (p) => setParticipantInput(p);
-
-  const addParticipant = () => {
-    if (!participantInput.trim()) return;
-    setParticipants(prev => [...prev, participantInput.trim()]);
-    setParticipantInput("");
-  };
-
-  const removeParticipant = (i) => setParticipants(prev => prev.filter((_, idx) => idx !== i));
-
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title.trim()) { alert("플랜 제목을 입력해주세요!"); return; }
 
     const parseHour = (timeStr) => {
@@ -243,37 +168,27 @@ export default function NewPlan() {
     const startH = parseHour(startTime);
     const endH = parseHour(endTime) || startH + 1;
 
+    try {
+      await apiCreateGroup(title, `${startDate} ~ ${endDate}`, endDate || startDate);
+    } catch (err) {
+      console.error("그룹 생성 실패:", err);
+    }
+
     addBlock({
-      planId,
-      day: 1,
-      startHour: startH,
-      endHour: endH,
-      type: "blue",
-      title,
-      avatars: [],
-      extra: participants.length,
+      planId, day: 1, startHour: startH, endHour: endH,
+      type: "blue", title, avatars: [], extra: 0,
     });
 
     addPlan({
-      id: planId,
-      title,
-      status: "확정",
+      id: planId, title, status: "확정",
       date: startDate || "날짜 미정",
       time: `${startTime || "--"} - ${endTime || "--"}`,
-      location: places[0] || "장소 미정",
-      count: participants.length,
-      isMine: true,
-      confirmed: true,
+      location: "장소 미정", count: 0, isMine: true, confirmed: true,
       dateRange: `${startDate || "미정"} ~ ${endDate || "미정"}`,
       bestTime: `${startDate || ""} ${startTime || "--"} ~ ${endTime || "--"}`,
-      totalCount: participants.length,
-      votedCount: 0,
-      places: places.map(p => ({ name: p, votes: 0 })),
-      participants: participants.map(p => ({ name: p, voted: false })),
-      memo: "",
+      totalCount: 0, votedCount: 0, places: [], participants: [], memo: "",
     });
 
-    
     navigate("/home");
   };
 
@@ -290,12 +205,9 @@ export default function NewPlan() {
         }} />
       )}
 
-      {/* Sidebar */}
       <div className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`} style={{
-        width: 180, background: "#111111",
-        borderRight: "1px solid #2a2a2a",
-        display: "flex", flexDirection: "column",
-        padding: "24px 0", flexShrink: 0,
+        width: 180, background: "#111111", borderRight: "1px solid #2a2a2a",
+        display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0,
         zIndex: 20, transition: "transform 0.3s ease",
       }}>
         <button onClick={() => setSidebarOpen(false)} className="sidebar-close-btn" style={{
@@ -305,16 +217,13 @@ export default function NewPlan() {
 
         <div onClick={() => navigate("/home")} style={{
           padding: "0 20px 28px", fontSize: 20, fontWeight: 700, color: "#fff", cursor: "pointer"
-        }}>
-          상대성 시간
-        </div>
+        }}>상대성 시간</div>
 
         <nav style={{ flex: 1 }}>
           {NAV_ITEMS.map((item) => (
             <div key={item.label} onClick={() => handleNavClick(item.label)} style={{
               display: "flex", alignItems: "center", gap: 10,
-              padding: "11px 20px", cursor: "pointer",
-              borderRadius: 8, margin: "2px 8px",
+              padding: "11px 20px", cursor: "pointer", borderRadius: 8, margin: "2px 8px",
               background: activeNav === item.label ? "#222222" : "transparent",
               color: activeNav === item.label ? "#fff" : "#888",
               fontSize: 14, fontWeight: activeNav === item.label ? 600 : 400,
@@ -338,32 +247,26 @@ export default function NewPlan() {
         </div>
       </div>
 
-      {/* Main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto",
         scrollbarWidth: "none", msOverflowStyle: "none" }}>
 
-        {/* Top bar */}
         <div style={{
           position: "sticky", top: 0, zIndex: 10,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          display: "flex", alignItems: "center",
           padding: "16px 24px", borderBottom: "1px solid #2a2a2a",
           background: "#111111", flexShrink: 0,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{
-              display: "none", background: "none", border: "none",
-              color: "#fff", fontSize: 22, cursor: "pointer", padding: "0 4px"
-            }}>☰</button>
-            <span style={{ fontSize: 18, fontWeight: 700 }}>새 모임 만들기</span>
-          </div>
-          
+          <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{
+            display: "none", background: "none", border: "none",
+            color: "#fff", fontSize: 22, cursor: "pointer", padding: "0 4px"
+          }}>☰</button>
+          <span style={{ fontSize: 18, fontWeight: 700 }}>새 모임 만들기</span>
         </div>
 
-        {/* Content */}
         <div style={{ padding: "24px 32px", maxWidth: 700 }}>
           <div style={{
             background: "#1a1a1a", borderRadius: 14, padding: "24px",
-            border: "1px solid #2a2a2a", marginBottom: 16,
+            border: "1px solid #2a2a2a", marginBottom: 24,
           }}>
             <Field label="플랜 제목" icon="✏️">
               <input value={title} onChange={e => setTitle(e.target.value)}
@@ -393,67 +296,6 @@ export default function NewPlan() {
             </div>
           </div>
 
-          <div style={{
-            background: "#1a1a1a", borderRadius: 14, padding: "24px",
-            border: "1px solid #2a2a2a", marginBottom: 24,
-          }}>
-            <Field label="장소 옵션" icon="📍">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-                {places.map((p, i) => (
-                  <Tag
-                    key={i}
-                    label={p}
-                    onRemove={() => removePlace(i)}
-                    onClick={() => fillPlaceInput(p)}
-                  />
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={placeInput}
-                  onChange={e => setPlaceInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && addPlace()}
-                  placeholder="장소를 추가하세요"
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-                <button onClick={addPlace} style={{
-                  width: 42, height: 42, borderRadius: 10, background: "#3b6ef8",
-                  border: "none", color: "#fff", fontSize: 20, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}>+</button>
-              </div>
-            </Field>
-
-            <div style={{ marginTop: 24 }}>
-              <Field label="참여자" icon="👥">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-                  {participants.map((p, i) => (
-                    <Tag
-                      key={i}
-                      label={p}
-                      onRemove={() => removeParticipant(i)}
-                      onClick={() => fillParticipantInput(p)}
-                    />
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    value={participantInput}
-                    onChange={e => setParticipantInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && addParticipant()}
-                    placeholder="이름, 아이디 또는 이메일을 입력하세요"
-                    style={{ ...inputStyle, flex: 1 }}
-                  />
-                  <button onClick={addParticipant} style={{
-                    width: 42, height: 42, borderRadius: 10, background: "#3b6ef8",
-                    border: "none", color: "#fff", fontSize: 20, cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  }}>+</button>
-                </div>
-              </Field>
-            </div>
-          </div>
-
           <button onClick={handleCreate} style={{
             width: "100%", background: "#3b6ef8", color: "#fff",
             border: "none", borderRadius: 12, padding: "16px 0",
@@ -469,11 +311,7 @@ export default function NewPlan() {
       <style>{`
         div::-webkit-scrollbar { display: none; }
         @media (max-width: 768px) {
-          .sidebar {
-            position: fixed !important;
-            top: 0; left: 0; bottom: 0;
-            transform: translateX(-100%);
-          }
+          .sidebar { position: fixed !important; top: 0; left: 0; bottom: 0; transform: translateX(-100%); }
           .sidebar-open { transform: translateX(0%) !important; }
           .sidebar-close-btn { display: block !important; }
           .mobile-overlay { display: block !important; }

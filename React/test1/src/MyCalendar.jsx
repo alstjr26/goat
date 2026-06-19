@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { apiGetSchedules, apiPostSchedule } from "./api";
+import { useState, useRef, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
 
@@ -34,7 +35,7 @@ export default function MyCalendar() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("내 일정");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [view, setView] = useState("주");
+
   const [weekOffset, setWeekOffset] = useState(0);
   const { userEvents, addEvent, removeEvent } = usePlan();
   const [events, setEvents] = useState([]);
@@ -45,7 +46,25 @@ export default function MyCalendar() {
   const [dragging, setDragging] = useState(null);
   const [selectedRange, setSelectedRange] = useState(null);
   const dragRef = useRef(null);
-
+  useEffect(() => {
+    apiGetSchedules().then(data => {
+      if (Array.isArray(data)) {
+        const loaded = data.map(s => {
+          const start = new Date(s.start_time);
+          const end = new Date(s.end_time);
+          return {
+            id: s.schedule_id,
+            date: start.toDateString(),
+            startHour: start.getHours(),
+            endHour: end.getHours(),
+            title: s.title,
+            color: EVENT_COLORS[colorIndex++ % EVENT_COLORS.length],
+          };
+        });
+        setEvents(loaded);
+      }
+    });
+  }, []);
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay() + weekOffset * 7);
@@ -114,27 +133,44 @@ export default function MyCalendar() {
     setShowColorPicker(false);
   };
 
-  const handleAddEvent = () => {
-    if (!popup.title.trim()) return;
-    const autoColor = EVENT_COLORS[colorIndex % EVENT_COLORS.length];
-    colorIndex++;
-    const eventDate = weekDays[popup.day];
-    const newEvent = {
-      id: Date.now(),
-      day: popup.day,
-      date: eventDate.toDateString(),
-      startHour: popup.startHour,
-      endHour: popup.endHour,
-      title: popup.title,
-      color: popup.color !== "#4285f4" ? popup.color : autoColor,
-      memo: popup.memo,
-      link: popup.link,
-    };
-    setEvents(prev => [...prev, newEvent]);
-    addEvent(newEvent);
-    setPopup(null);
-    setSelectedRange(null);
+  const handleAddEvent = async () => {
+  if (!popup.title.trim()) return;
+
+  const eventDate = weekDays[popup.day];
+  const startDate = new Date(eventDate);
+  startDate.setHours(popup.startHour, 0, 0, 0);
+  const endDate = new Date(eventDate);
+  endDate.setHours(popup.endHour, 0, 0, 0);
+
+  const result = await apiPostSchedule(
+    popup.title,
+    startDate.toISOString(),
+    endDate.toISOString()
+  );
+
+  if (!result.schedule_id) {
+    alert(result.message || "일정 등록 실패");
+    return;
+  }
+
+  const autoColor = EVENT_COLORS[colorIndex % EVENT_COLORS.length];
+  colorIndex++;
+  const newEvent = {
+    id: result.schedule_id,
+    day: popup.day,
+    date: eventDate.toDateString(),
+    startHour: popup.startHour,
+    endHour: popup.endHour,
+    title: popup.title,
+    color: popup.color !== "#4285f4" ? popup.color : autoColor,
+    memo: popup.memo,
+    link: popup.link,
   };
+  setEvents(prev => [...prev, newEvent]);
+  addEvent(newEvent);
+  setPopup(null);
+  setSelectedRange(null);
+};
 
   const handleDeleteEvent = (id) => {
     setEvents(prev => prev.filter(e => e.id !== id));

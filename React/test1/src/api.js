@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = 'https://schedule-project-d3es.onrender.com'
 
 // 토큰 관리
 export const getToken = () => localStorage.getItem("token");
@@ -43,7 +43,7 @@ export const apiLogin = async (email, password) => {
 };
 
 export const apiGetMe = () =>
-  fetch(`${BASE_URL}/api/users  /me`, {
+  fetch(`${BASE_URL}/api/users/me`, {
     headers: authHeaders(),
   }).then(r => r.json());
 
