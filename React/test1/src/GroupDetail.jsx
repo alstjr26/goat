@@ -58,12 +58,14 @@ export default function GroupDetail() {
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const isOwner = group && user && group.owner_id === user.id;
+  const isOwner = group && user && group.user_id === user.id;
   console.log('user:',user, 'group.owner_id', group?.owner_id);
-  
+
   const loadAll = async () => {
     setLoading(true);
     const g = await apiGetGroup(id);
+    console.log("group 전체 데이터:", JSON.stringify(g));
+    
     setGroup(g);
 
     const m = await apiGetGroupMembers(id);
@@ -232,7 +234,7 @@ export default function GroupDetail() {
                 <div>
                   <div style={{ fontSize: 14, color: "#fff", fontWeight: 600 }}>
                     {m.users?.nickname}
-                    {m.user_id === group.owner_id && (
+                    {m.user_id === group.user_id && (
                       <span style={{
                         marginLeft: 8, fontSize: 11, color: "#5b8af8",
                         background: "#1a2a4a", borderRadius: 20, padding: "2px 8px",

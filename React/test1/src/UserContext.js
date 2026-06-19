@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiLogin, apiSignup, apiGetMe, setToken, removeToken, getToken } from "./api";
 
 const UserContext = createContext();
@@ -7,23 +7,31 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadUser = useCallback(async () => {
     const token = getToken();
-    if (token) {
-      apiGetMe()
-        .then(data => {
-          if (data.user_id) {
-            setUser({ id: data.user_id, name: data.nickname, email: data.email });
-          } else {
-            removeToken();
-          }
-        })
-        .catch(() => removeToken())
-        .finally(() => setLoading(false));
-    } else {
+    if (!token) { setLoading(false); return; }
+    try {
+      const data = await apiGetMe();
+      if (data.user_id) {
+        setUser({ id: data.user_id, name: data.nickname, email: data.email });
+      } else {
+        removeToken();
+        setUser(null);
+      }
+    } catch {
+      removeToken();
+      setUser(null);
+    } finally {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    loadUser();
+    // 50분마다 유저 정보 갱신 (토큰 만료 전)
+    const interval = setInterval(loadUser, 50 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [loadUser]);
 
   const login = async (email, password) => {
     try {
@@ -43,7 +51,6 @@ export function UserProvider({ children }) {
   const register = async (name, email, password) => {
     try {
       const data = await apiSignup(email, password, name);
-      console.log("signup 응답:", data);
       if (data.message === "서버 연결 실패. 잠시 후 다시 시도해주세요.") {
         return { success: false, message: data.message };
       }

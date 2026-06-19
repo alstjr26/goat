@@ -162,37 +162,52 @@ export default function NewPlan() {
     return new Date(y, m - 1, d, h, min, 0).toISOString();
   };
 
-  const handleCreate = async () => {
-    if (!title.trim()) { alert("플랜 제목을 입력해주세요!"); return; }
+const handleCreate = async () => {
+  if (!title.trim()) { alert("플랜 제목을 입력해주세요!"); return; }
 
-    const parseHour = (timeStr) => {
-      if (!timeStr) return 9;
-      const [h] = timeStr.split(":");
-      return parseInt(h) || 9;
-    };
+  const parseHour = (timeStr) => {
+    if (!timeStr) return 9;
+    const [h] = timeStr.split(":");
+    return parseInt(h) || 9;
+  };
 
-    const startH = parseHour(startTime);
-    const endH = parseHour(endTime) || startH + 1;
-    const deadlineISO = parseDateTimeToISO(endDate || startDate, endTime);
+  const startH = parseHour(startTime);
+  const endH = parseHour(endTime) || startH + 1;
+  const deadlineISO = parseDateTimeToISO(endDate || startDate, endTime);
 
-    const result = await createPlan(
-      title,
-      `${startDate} ~ ${endDate}`,
-      deadlineISO
-    );
+const result = await createPlan(
+  title,
+  `${startDate} ${startTime} ~ ${endDate} ${endTime}`,  // 시간 포함
+  deadlineISO
+);
 
-    if (!result.success) {
-      alert(result.message || "약속 방 생성에 실패했어요.");
-      return;
-    }
+  if (!result.success) {
+    alert(result.message || "약속 방 생성에 실패했어요.");
+    return;
+  }
+
+  // 시작 날짜 기반으로 요일 인덱스 계산
+  if (startDate) {
+    const nums = startDate.replace(/\./g, '').trim().split(' ').filter(Boolean).map(Number);
+    const [y, m, d] = nums;
+    const dateObj = new Date(y, m - 1, d);
+    const dayOfWeek = dateObj.getDay(); // 0=일 ~ 6=토
+    const di = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 월=0 ~ 일=6
 
     addBlock({
-      planId: result.id, day: 1, startHour: startH, endHour: endH,
-      type: "blue", title, avatars: [], extra: 0,
+      planId: result.id,
+      day: di,
+      startHour: startH,
+      endHour: endH,
+      type: "blue",
+      title,
+      avatars: [],
+      extra: 0,
     });
+  }
 
-    navigate("/home");
-  };
+  navigate("/home");
+};
 
   return (
     <div className="page-fade" style={{

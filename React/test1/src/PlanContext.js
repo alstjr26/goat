@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import {
-  apiCreateGroup, apiGetMyGroups, apiJoinGroup, apiDeleteGroup,
+  apiCreateGroup, apiGetMyGroups, apiJoinGroup, apiDeleteGroup, apiGetSchedules,
 } from "./api";
 
 const PlanContext = createContext();
@@ -12,12 +12,30 @@ export function PlanProvider({ children }) {
 
   // 토큰 체크 추가
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    apiGetMyGroups().then(data => {
-      if (Array.isArray(data)) setUserPlans(data);
-    });
-  }, []);
+  const token = localStorage.getItem("token");
+  if (!token) return;
+  
+  apiGetMyGroups().then(data => {
+    if (Array.isArray(data)) setUserPlans(data);
+  });
+  
+  apiGetSchedules().then(data => {
+    if (Array.isArray(data)) {
+      setUserEvents(data.map(s => {
+        const start = new Date(s.start_time);
+        return {
+          id: s.schedule_id,
+          date: `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`,
+          day: (start.getDay() + 6) % 7,
+          startHour: start.getHours(),
+          endHour: new Date(s.end_time).getHours(),
+          title: s.title,
+          color: "#4285f4",
+        };
+      }));
+    }
+  });
+}, []);
 
   const createPlan = async (title, description, deadline) => {
     const result = await apiCreateGroup(title, description, deadline);
@@ -38,6 +56,7 @@ export function PlanProvider({ children }) {
 
   // API 연동 추가
   const removePlan = async (id) => {
+    console.log("삭제 시도 id:", id);
     try {
       await apiDeleteGroup(id);
     } catch (err) {

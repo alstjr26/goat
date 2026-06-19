@@ -4,12 +4,7 @@ import { usePlan } from "./PlanContext";
 
 const DAYS_OF_WEEK_KO = ["일", "월", "화", "수", "목", "금", "토"];
 const HOURS = ["7am", "8am", "9am", "10am", "11am", "12pm", "1pm", "2pm", "3pm", "4pm", "5pm", "6pm", "7pm", "8pm", "9pm", "10pm", "11pm", "12am"];
-const AVATARS = [
-  { id: 1, color: "#e8a87c" },
-  { id: 2, color: "#7c9ee8" },
-  { id: 3, color: "#e87c9a" },
-  { id: 4, color: "#7ce8b0" },
-];
+
 
 function Avatar({ color, size = 28, style = {} }) {
   return (
@@ -143,6 +138,7 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
   
 
   const handleLoadSchedule = () => {
+    console.log("userEvents:", userEvents);
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay() + 1 + weekOffset * 7);
     weekStart.setHours(0, 0, 0, 0);
@@ -150,12 +146,12 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
     weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
 
-    const weekEvents = userEvents.filter(ev => {
-      const evDate = new Date(ev.date);
-      return evDate >= weekStart && evDate <= weekEnd;
-    });
+const weekEvents = userEvents.filter(ev => {
+  const evDate = new Date(ev.date + "T00:00:00");
+  evDate.setHours(0, 0, 0, 0);
+  return evDate >= weekStart && evDate <= weekEnd;
+});
 
-    let selected = new Set();
 
     const ScheduleModal = () => {
       const [sel, setSel] = React.useState(new Set());
@@ -168,28 +164,23 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
         });
       };
 
-      const handleConfirm = () => {
-        const chosenEvents = weekEvents.filter(ev => sel.has(ev.id));
-        setInitBlocks(prev => {
-          const filtered = prev.filter(b => !b.fromMyCalendar);
-          const newBlocks = chosenEvents.map(ev => {
-            const evDate = new Date(ev.date);
-            const dayOfWeek = evDate.getDay();
-            const di = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-            return {
-              day: di,
-              startHour: ev.startHour,
-              endHour: ev.endHour,
-              type: "gray-light",
-              title: ev.title,
-              color: ev.color,
-              fromMyCalendar: true,
-            };
-          });
-          return [...filtered, ...newBlocks];
-        });
-        closeModal();
-      };
+const handleConfirm = () => {
+  const chosenEvents = weekEvents.filter(ev => sel.has(ev.id));
+  setInitBlocks(prev => {
+    const filtered = prev.filter(b => !b.fromMyCalendar);
+    const newBlocks = chosenEvents.map(ev => ({
+      day: ev.day,  // date 계산 대신 day 직접 사용
+      startHour: ev.startHour,
+      endHour: ev.endHour,
+      type: "gray-light",
+      title: ev.title,
+      color: ev.color,
+      fromMyCalendar: true,
+    }));
+    return [...filtered, ...newBlocks];
+  });
+  closeModal();
+};
 
       return (
         <div>

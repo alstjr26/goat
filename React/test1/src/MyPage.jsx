@@ -18,8 +18,8 @@ export default function MyPage() {
 const [showNicknameModal, setShowNicknameModal] = useState(false);
 const [newNickname, setNewNickname] = useState("");
   const { userPlans } = usePlan();
-  const createdCount = userPlans.filter(p => p.owner_id === user?.id).length;
-const joinedCount = userPlans.filter(p => p.owner_id !== user?.id).length;
+  const createdCount = userPlans.filter(p => p.user_id === user?.id).length;
+const joinedCount = userPlans.filter(p => p.user_id !== user?.id).length;
 const handleNicknameChange = async () => {
   if (!newNickname.trim()) return;
   try {

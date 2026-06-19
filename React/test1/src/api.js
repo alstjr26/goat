@@ -5,11 +5,22 @@ export const getToken = () => localStorage.getItem("token");
 export const setToken = (token) => localStorage.setItem("token", token);
 export const removeToken = () => localStorage.removeItem("token");
 
-// 공통 헤더
-const authHeaders = () => ({
-  "Content-Type": "application/json",
-  "Authorization": `Bearer ${getToken()}`,
-});
+// 공통 fetch 함수 (401 시 자동 로그아웃)
+const authFetch = async (url, options = {}) => {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${getToken()}`,
+      ...options.headers,
+    },
+  });
+  if (res.status === 401) {
+    removeToken();
+    window.location.href = "/";
+  }
+  return res;
+};
 
 // ── 인증 ──
 export const apiSignup = async (email, password, nickname) => {
@@ -43,99 +54,77 @@ export const apiLogin = async (email, password) => {
 };
 
 export const apiGetMe = () =>
-  fetch(`${BASE_URL}/api/users/me`, {
-    headers: authHeaders(),
-  }).then(r => r.json());
+  authFetch(`${BASE_URL}/api/users/me`).then(r => r.json());
 
 // ── 내 시간표 ──
 export const apiPostSchedule = (title, start_time, end_time) =>
-  fetch(`${BASE_URL}/api/schedules`, {
+  authFetch(`${BASE_URL}/api/schedules`, {
     method: "POST",
-    headers: authHeaders(),
     body: JSON.stringify({ title, start_time, end_time }),
   }).then(r => r.json());
 
 export const apiGetSchedules = () =>
-  fetch(`${BASE_URL}/api/schedules`, {
-    headers: authHeaders(),
-  }).then(r => r.json());
+  authFetch(`${BASE_URL}/api/schedules`).then(r => r.json());
+
+export const apiDeleteSchedule = (id) =>
+  authFetch(`${BASE_URL}/api/schedules/${id}`, {
+    method: "DELETE",
+  }).then(r => {
+    if (!r.ok) throw new Error("삭제 실패");
+    return r.json();
+  });
 
 // ── 약속 방 ──
 export const apiCreateGroup = (title, description, deadline) =>
-  fetch(`${BASE_URL}/api/groups`, {
+  authFetch(`${BASE_URL}/api/groups`, {
     method: "POST",
-    headers: authHeaders(),
     body: JSON.stringify({ title, description, deadline }),
   }).then(r => r.json());
 
 export const apiGetGroup = (id) =>
-  fetch(`${BASE_URL}/api/groups/${id}`, {
-    headers: authHeaders(),
-  }).then(r => r.json());
+  authFetch(`${BASE_URL}/api/groups/${id}`).then(r => r.json());
 
 export const apiJoinGroup = (id, email) =>
-  fetch(`${BASE_URL}/api/groups/${id}/join`, {
+  authFetch(`${BASE_URL}/api/groups/${id}/join`, {
     method: "POST",
-    headers: authHeaders(),
     body: JSON.stringify({ email }),
   }).then(r => r.json());
 
 export const apiGetGroupMembers = (id) =>
-  fetch(`${BASE_URL}/api/groups/${id}/members`, {
-    headers: authHeaders(),
-  }).then(r => r.json());
+  authFetch(`${BASE_URL}/api/groups/${id}/members`).then(r => r.json());
 
 export const apiPostAvailability = (id, schedule_id, is_available) =>
-  fetch(`${BASE_URL}/api/groups/${id}/availability`, {
+  authFetch(`${BASE_URL}/api/groups/${id}/availability`, {
     method: "POST",
-    headers: authHeaders(),
     body: JSON.stringify({ schedule_id, is_available }),
   }).then(r => r.json());
 
 export const apiGetRecommend = (id) =>
-  fetch(`${BASE_URL}/api/groups/${id}/recommend`, {
-    headers: authHeaders(),
-  }).then(r => r.json());
+  authFetch(`${BASE_URL}/api/groups/${id}/recommend`).then(r => r.json());
 
 export const apiConfirmGroup = (id, start_time, end_time) =>
-  fetch(`${BASE_URL}/api/groups/${id}/confirm`, {
+  authFetch(`${BASE_URL}/api/groups/${id}/confirm`, {
     method: "POST",
-    headers: authHeaders(),
     body: JSON.stringify({ start_time, end_time }),
   }).then(r => r.json());
 
 export const apiGetConfirm = (id) =>
-  fetch(`${BASE_URL}/api/groups/${id}/confirm`, {
-    headers: authHeaders(),
-  }).then(r => r.json());
-
-export const apiDeleteSchedule = (id) =>
-  fetch(`${BASE_URL}/api/schedules/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  }).then(r => {
-    if (!r.ok) throw new Error("삭제 실패");
-    return r.json();
-  });
+  authFetch(`${BASE_URL}/api/groups/${id}/confirm`).then(r => r.json());
 
 export const apiGetMyGroups = () =>
-  fetch(`${BASE_URL}/api/groups`, {
-    headers: authHeaders(),
-  }).then(r => r.json());
+  authFetch(`${BASE_URL}/api/groups`).then(r => r.json());
 
 export const apiDeleteGroup = (id) =>
-  fetch(`${BASE_URL}/api/groups/${id}`, {
+  authFetch(`${BASE_URL}/api/groups/${id}`, {
     method: "DELETE",
-    headers: authHeaders(),
   }).then(r => {
     if (!r.ok) throw new Error("삭제 실패");
     return r.json();
   });
 
- export const apiUpdateNickname = (nickname) =>
-  fetch(`${BASE_URL}/api/users/me`, {
+export const apiUpdateNickname = (nickname) =>
+  authFetch(`${BASE_URL}/api/users/me`, {
     method: "PATCH",
-    headers: authHeaders(),
     body: JSON.stringify({ nickname }),
   }).then(r => {
     if (!r.ok) throw new Error("닉네임 변경 실패");
@@ -143,9 +132,8 @@ export const apiDeleteGroup = (id) =>
   });
 
 export const apiUpdatePassword = (password) =>
-  fetch(`${BASE_URL}/api/users/password`, {
+  authFetch(`${BASE_URL}/api/users/password`, {
     method: "PATCH",
-    headers: authHeaders(),
     body: JSON.stringify({ password }),
   }).then(r => {
     if (!r.ok) throw new Error("비밀번호 변경 실패");

@@ -105,14 +105,22 @@ export default function History() {
 
   
 const normalizePlan = (p) => {
-  console.log("owner_id:", p.owner_id, "user.id:", user?.id);
+   console.log("description:", p.description); // 
+  const parts = p.description?.split("~") || [];
+  const startPart = parts[0]?.trim() || "";
+
+  // "2026. 06. 19 14:00" 형식에서 날짜/시간 분리
+  const dateTimeParts = startPart.split(" ").filter(Boolean);
+  const datePart = dateTimeParts.slice(0, 3).join(" ");  // "2026. 06. 19"
+  const timePart = dateTimeParts[3] || "-";               // "14:00"
+
   return {
     id: p.group_plan_id,
     title: p.title,
     status: p.status === "CONFIRMED" ? "확정" : "투표 진행중",
-    date: p.deadline ? new Date(p.deadline).toLocaleDateString() : "날짜 미정",
-    time: p.deadline ? new Date(p.deadline).toLocaleTimeString() : "-",
-    isMine: p.owner_id === user?.id,
+    date: datePart || "날짜 미정",
+    time: timePart,
+    isMine: p.user_id === user?.id,
   };
 };
   const allPlans = user ? [...plans, ...userPlans.map(normalizePlan)] : [...plans];
