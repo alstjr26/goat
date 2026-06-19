@@ -108,3 +108,17 @@ export const apiGetConfirm = (id) =>
   fetch(`${BASE_URL}/api/groups/${id}/confirm`, {
     headers: authHeaders(),
   }).then(r => r.json());
+
+export const apiDeleteSchedule = (id) =>
+  fetch(`${BASE_URL}/api/schedules/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  }).then(r => {
+    if (!r.ok) throw new Error("삭제 실패");
+    return r.json();
+  });
+
+export const apiGetMyGroups = () =>
+  fetch(`${BASE_URL}/api/groups`, {
+    headers: authHeaders(),
+  }).then(r => r.json());

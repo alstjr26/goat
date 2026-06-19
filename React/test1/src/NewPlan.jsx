@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
-import { apiCreateGroup } from "./api";
 
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
@@ -136,7 +135,7 @@ function DatePicker({ value, onChange }) {
 }
 
 export default function NewPlan() {
-  const { addBlock, addPlan } = usePlan();
+  const { addBlock, createPlan } = usePlan();
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("새 모임");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -155,6 +154,14 @@ export default function NewPlan() {
     if (label === "마이페이지") { navigate("/mypage"); return; }
   };
 
+  const parseDateTimeToISO = (dateStr, timeStr) => {
+    if (!dateStr) return null;
+    const nums = dateStr.replace(/\./g, '').trim().split(' ').filter(Boolean).map(Number);
+    const [y, m, d] = nums;
+    const [h, min] = (timeStr || '0:0').split(':').map(v => parseInt(v) || 0);
+    return new Date(y, m - 1, d, h, min, 0).toISOString();
+  };
+
   const handleCreate = async () => {
     if (!title.trim()) { alert("플랜 제목을 입력해주세요!"); return; }
 
@@ -164,29 +171,24 @@ export default function NewPlan() {
       return parseInt(h) || 9;
     };
 
-    const planId = Date.now();
     const startH = parseHour(startTime);
     const endH = parseHour(endTime) || startH + 1;
+    const deadlineISO = parseDateTimeToISO(endDate || startDate, endTime);
 
-    try {
-      await apiCreateGroup(title, `${startDate} ~ ${endDate}`, endDate || startDate);
-    } catch (err) {
-      console.error("그룹 생성 실패:", err);
+    const result = await createPlan(
+      title,
+      `${startDate} ~ ${endDate}`,
+      deadlineISO
+    );
+
+    if (!result.success) {
+      alert(result.message || "약속 방 생성에 실패했어요.");
+      return;
     }
 
     addBlock({
-      planId, day: 1, startHour: startH, endHour: endH,
+      planId: result.id, day: 1, startHour: startH, endHour: endH,
       type: "blue", title, avatars: [], extra: 0,
-    });
-
-    addPlan({
-      id: planId, title, status: "확정",
-      date: startDate || "날짜 미정",
-      time: `${startTime || "--"} - ${endTime || "--"}`,
-      location: "장소 미정", count: 0, isMine: true, confirmed: true,
-      dateRange: `${startDate || "미정"} ~ ${endDate || "미정"}`,
-      bestTime: `${startDate || ""} ${startTime || "--"} ~ ${endTime || "--"}`,
-      totalCount: 0, votedCount: 0, places: [], participants: [], memo: "",
     });
 
     navigate("/home");

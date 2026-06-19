@@ -1,4 +1,4 @@
-import { apiGetSchedules, apiPostSchedule } from "./api";
+import { apiGetSchedules, apiPostSchedule, apiDeleteSchedule } from "./api";
 import { useState, useRef, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
@@ -172,11 +172,17 @@ export default function MyCalendar() {
   setSelectedRange(null);
 };
 
-  const handleDeleteEvent = (id) => {
+  const handleDeleteEvent = async (id) => {
+  try {
+    await apiDeleteSchedule(id);
     setEvents(prev => prev.filter(e => e.id !== id));
     removeEvent(id);
     setDetailModal(null);
-  };
+  } catch (err) {
+    alert("일정 삭제에 실패했습니다.");
+  }
+};
+
 
   return (
     <div className="page-fade" style={{
