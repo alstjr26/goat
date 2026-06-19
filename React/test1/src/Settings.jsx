@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "./UserContext";
-
+import { apiUpdatePassword } from "./api";
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
   { label: "내 일정", icon: "📅" },
@@ -77,24 +77,29 @@ export default function Settings() {
     if (label === "마이페이지") { navigate("/mypage"); return; }
   };
 
-  const handlePasswordChange = () => {
-    setPasswordError("");
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      setPasswordError("모든 항목을 입력해주세요."); return;
-    }
-    if (newPassword.length < 6) {
-      setPasswordError("비밀번호는 6자 이상이어야 합니다."); return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError("새 비밀번호가 일치하지 않습니다."); return;
-    }
+const handlePasswordChange = async () => {
+  setPasswordError("");
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    setPasswordError("모든 항목을 입력해주세요."); return;
+  }
+  if (newPassword.length < 6) {
+    setPasswordError("비밀번호는 6자 이상이어야 합니다."); return;
+  }
+  if (newPassword !== confirmPassword) {
+    setPasswordError("새 비밀번호가 일치하지 않습니다."); return;
+  }
+  try {
+    await apiUpdatePassword(newPassword);
     setPasswordSuccess(true);
     setTimeout(() => {
       setShowPasswordModal(false);
       setOldPassword(""); setNewPassword(""); setConfirmPassword("");
       setPasswordSuccess(false);
     }, 1500);
-  };
+  } catch (err) {
+    setPasswordError("비밀번호 변경에 실패했습니다.");
+  }
+};
 
   const handleTimeFormat = () => {
     setTimeFormat(prev => prev === "12시간" ? "24시간" : "12시간");

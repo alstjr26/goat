@@ -8,6 +8,7 @@ import History from './History';
 import MyPage from './MyPage';
 import NewPlan from './NewPlan';
 import MyCalendar from './MyCalendar';
+import GroupDetail from './GroupDetail';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/newplan" element={<NewPlan />} />
             <Route path="/mycalendar" element={<MyCalendar />} />
+            <Route path="/group/:id" element={<GroupDetail />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </BrowserRouter>
@@ -29,5 +31,4 @@ function App() {
     </UserProvider>
   );
 }
-
 export default App;

@@ -122,3 +122,32 @@ export const apiGetMyGroups = () =>
   fetch(`${BASE_URL}/api/groups`, {
     headers: authHeaders(),
   }).then(r => r.json());
+
+export const apiDeleteGroup = (id) =>
+  fetch(`${BASE_URL}/api/groups/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  }).then(r => {
+    if (!r.ok) throw new Error("삭제 실패");
+    return r.json();
+  });
+
+ export const apiUpdateNickname = (nickname) =>
+  fetch(`${BASE_URL}/api/users/me`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ nickname }),
+  }).then(r => {
+    if (!r.ok) throw new Error("닉네임 변경 실패");
+    return r.json();
+  });
+
+export const apiUpdatePassword = (password) =>
+  fetch(`${BASE_URL}/api/users/password`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ password }),
+  }).then(r => {
+    if (!r.ok) throw new Error("비밀번호 변경 실패");
+    return r.json();
+  });

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "./UserContext";
 import { usePlan } from "./PlanContext";
-
+import { apiUpdateNickname } from "./api";
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
   { label: "내 일정", icon: "📅" },
@@ -18,14 +18,19 @@ export default function MyPage() {
 const [showNicknameModal, setShowNicknameModal] = useState(false);
 const [newNickname, setNewNickname] = useState("");
   const { userPlans } = usePlan();
-  const createdCount = userPlans.filter(p => p.isMine).length;
-  const joinedCount = userPlans.filter(p => !p.isMine).length;
-const handleNicknameChange = () => {
-    if (!newNickname.trim()) return;
+  const createdCount = userPlans.filter(p => p.owner_id === user?.id).length;
+const joinedCount = userPlans.filter(p => p.owner_id !== user?.id).length;
+const handleNicknameChange = async () => {
+  if (!newNickname.trim()) return;
+  try {
+    await apiUpdateNickname(newNickname.trim());
     setUser(prev => ({ ...prev, name: newNickname.trim() }));
     setShowNicknameModal(false);
     setNewNickname("");
-  };
+  } catch (err) {
+    alert("닉네임 변경에 실패했습니다.");
+  }
+};
   const handleNavClick = (label) => {
     setActiveNav(label);
     setSidebarOpen(false);

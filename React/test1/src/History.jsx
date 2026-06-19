@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
+import { useUser } from "./UserContext";
 
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
@@ -10,8 +11,6 @@ const NAV_ITEMS = [
 ];
 
 const INIT_PLANS = [];
-
-const AVATARS = ["🧑", "👩", "👦", "👧", "🧔", "👱", "🧒"];
 
 function StatusBadge({ status }) {
   const colors = {
@@ -70,10 +69,6 @@ function PlanCard({ plan, onClick, onDelete }) {
           <span>📅 {plan.date}</span>
           <span>{plan.time}</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 20, color: "#888", fontSize: 13, marginTop: 6 }}>
-          <span>📍 {plan.location}</span>
-          <span>👥 {plan.count}명 참여</span>
-        </div>
       </div>
 
       <div style={{ marginLeft: 16, flexShrink: 0 }}>
@@ -93,173 +88,6 @@ function PlanCard({ plan, onClick, onDelete }) {
             color: "#e05555", fontSize: 16,
           }}>✕</div>
         )}
-        {plan.status === "완료" && (
-          <div style={{
-            width: 32, height: 32, borderRadius: "50%",
-            border: "2px solid #555",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#555", fontSize: 16,
-          }}>✓</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DetailPage({ plan, onBack, onGoHome, onInvite }) {
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", scrollbarWidth: "none" }}>
-      {/* Top bar */}
-      <div style={{
-        position: "sticky", top: 0, zIndex: 10,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "16px 24px", borderBottom: "1px solid #2a2a2a",
-        background: "#111111", flexShrink: 0,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={onBack} style={{
-            background: "none", border: "none", color: "#888",
-            fontSize: 20, cursor: "pointer", padding: "0 4px",
-          }}>←</button>
-          <span style={{ fontSize: 18, fontWeight: 700 }}>{plan.title}</span>
-        </div>
-        
-      </div>
-
-      {/* Content */}
-      <div style={{ padding: "24px 32px", maxWidth: 900 }}>
-        <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
-
-          {/* 왼쪽 카드 */}
-          <div style={{
-            flex: 1, background: "#1a1a1a", borderRadius: 14, padding: "24px",
-            border: "1px solid #2a2a2a",
-          }}>
-            <div style={{ marginBottom: 16 }}>
-              <StatusBadge status="투표 진행중" />
-            </div>
-
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
-              <span style={{ color: "#888", fontSize: 18, marginTop: 2 }}>📅</span>
-              <div>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>일정 범위</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{plan.dateRange}</div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
-              <span style={{ color: "#888", fontSize: 18, marginTop: 2 }}>👥</span>
-              <div>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>참여 인원</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>
-                  {plan.totalCount}명 ({plan.votedCount}명 투표 완료)
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
-              <span style={{ color: "#3b6ef8", fontSize: 18, marginTop: 2 }}>🕐</span>
-              <div>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>최적 시간</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#3b6ef8" }}>{plan.bestTime}</div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 24 }}>
-              <span style={{ color: "#888", fontSize: 18, marginTop: 2 }}>📍</span>
-              <div>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>장소 후보</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{plan.places.length}개 장소</div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={onGoHome} style={{
-                flex: 1, background: "#3b6ef8", color: "#fff", border: "none",
-                borderRadius: 10, padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: "pointer",
-              }}>모임 보러가기 →</button>
-              <button onClick={onInvite} style={{
-                background: "#1a1a1a", color: "#aaa",
-                background: "#1a1a1a", color: "#aaa",
-                border: "1px solid #2a2a2a",
-                borderRadius: 10, padding: "13px 16px", fontSize: 13, cursor: "pointer",
-              }}>🔗 초대하기</button>
-            </div>
-          </div>
-
-          {/* 오른쪽 참여자 카드 */}
-          <div style={{
-            width: 220, background: "#1a1a1a", borderRadius: 14, padding: "20px",
-            border: "1px solid #2a2a2a", flexShrink: 0,
-          }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 16 }}>참여자</div>
-            {plan.participants.map((p, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                marginBottom: 14,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{
-                    width: 34, height: 34, borderRadius: "50%",
-                    background: "#2a2a2a", display: "flex",
-                    alignItems: "center", justifyContent: "center",
-                    fontSize: 18,
-                  }}>{AVATARS[i % AVATARS.length]}</div>
-                  <span style={{ fontSize: 14, color: "#fff" }}>{p.name}</span>
-                </div>
-                <span style={{
-                  fontSize: 12, fontWeight: 600,
-                  color: p.voted ? "#4caf80" : "#888",
-                }}>{p.voted ? "투표 완료" : "미투표"}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 장소 후보 */}
-        <div style={{
-          background: "#1a1a1a", borderRadius: 14, padding: "20px 24px",
-          border: "1px solid #2a2a2a", marginBottom: 16,
-        }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 16 }}>장소 후보</div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {plan.places.map((p, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 8,
-                background: "#222222", borderRadius: 10, padding: "10px 18px",
-                border: "1px solid #2a2a2a", minWidth: 140,
-                justifyContent: "space-between",
-              }}>
-                <span style={{ color: "#888", fontSize: 14 }}>📍</span>
-                <span style={{ fontSize: 14, color: "#fff", fontWeight: 500 }}>{p.name}</span>
-                <span style={{ fontSize: 13, color: "#888", fontWeight: 600 }}>{p.votes}표</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 공유 메모 */}
-        {plan.memo && (
-          <div style={{
-            background: "#1a1a1a", borderRadius: 14, padding: "20px 24px",
-            border: "1px solid #2a2a2a", marginBottom: 16,
-          }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 12 }}>공유 메모</div>
-            <p style={{ fontSize: 14, color: "#888", lineHeight: 1.6 }}>{plan.memo}</p>
-          </div>
-        )}
-
-        {/* 모임 나가기 */}
-        <div style={{
-          background: "#1a1a1a", borderRadius: 14, padding: "16px 24px",
-          border: "1px solid #2a2a2a",
-        }}>
-          <button style={{
-            background: "none", border: "none", color: "#e05555",
-            fontSize: 14, cursor: "pointer", fontWeight: 600,
-            display: "flex", alignItems: "center", gap: 8,
-          }}>→ 모임 나가기</button>
-        </div>
       </div>
     </div>
   );
@@ -271,14 +99,23 @@ export default function History() {
   const [filter, setFilter] = useState("전체");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { userPlans, removePlan } = usePlan();
-const [plans, setPlans] = useState(INIT_PLANS);
-const [deleteTarget, setDeleteTarget] = useState(null);
-const [selectedPlan, setSelectedPlan] = useState(null);
-const [showInviteModal, setShowInviteModal] = useState(false);
-const [inviteEmail, setInviteEmail] = useState("");
-const [inviteError, setInviteError] = useState("");
-const [inviteSent, setInviteSent] = useState(false);
-const allPlans = [...plans, ...userPlans];
+  const { user } = useUser();
+  const [plans, setPlans] = useState(INIT_PLANS);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  
+const normalizePlan = (p) => {
+  console.log("owner_id:", p.owner_id, "user.id:", user?.id);
+  return {
+    id: p.group_plan_id,
+    title: p.title,
+    status: p.status === "CONFIRMED" ? "확정" : "투표 진행중",
+    date: p.deadline ? new Date(p.deadline).toLocaleDateString() : "날짜 미정",
+    time: p.deadline ? new Date(p.deadline).toLocaleTimeString() : "-",
+    isMine: p.owner_id === user?.id,
+  };
+};
+  const allPlans = user ? [...plans, ...userPlans.map(normalizePlan)] : [...plans];
 
   const filters = ["전체", "생성한 플랜", "참여한 플랜"];
 
@@ -291,30 +128,20 @@ const allPlans = [...plans, ...userPlans];
   const handleNavClick = (label) => {
     setActiveNav(label);
     setSidebarOpen(false);
-    if (label === "참여 기록") { setSelectedPlan(null); return; }
+    if (label === "참여 기록") return;
     if (label === "새 모임") { navigate("/newplan"); return; }
     if (label === "내 일정") { navigate("/mycalendar"); return; }
     if (label === "마이페이지") { navigate("/mypage"); return; }
   };
-const handleInvite = () => {
-  if (!inviteEmail.trim()) {
-    setInviteError("이메일을 입력해주세요.");
-    return;
-  }
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(inviteEmail.trim())) {
-    setInviteError("올바른 이메일 형식을 입력해주세요.");
-    return;
-  }
-  setInviteSent(true);
-  setInviteError("");
-};
-  const confirmDelete = () => {
-  setPlans(prev => prev.filter(p => p.id !== deleteTarget));
-  removePlan(deleteTarget);
-  setDeleteTarget(null);
-  if (selectedPlan?.id === deleteTarget) setSelectedPlan(null);
-};
+
+  const confirmDelete = async () => {
+    setPlans(prev => prev.filter(p => p.id !== deleteTarget));
+    const result = await removePlan(deleteTarget);
+    if (result && !result.success) {
+      alert(result.message || "삭제에 실패했습니다.");
+    }
+    setDeleteTarget(null);
+  };
 
   return (
     <div className="page-fade" style={{
@@ -323,73 +150,6 @@ const handleInvite = () => {
       fontFamily: "'Noto Sans KR', sans-serif",
       overflow: "hidden",
     }}>
-{/* 초대 모달 */}
-{showInviteModal && (
-  <div style={{
-    position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
-    zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center"
-  }} onClick={() => { setShowInviteModal(false); setInviteEmail(""); setInviteError(""); setInviteSent(false); }}>
-    <div onClick={e => e.stopPropagation()} style={{
-      background: "#1a1a1a", borderRadius: 14, padding: "28px",
-      minWidth: 360, border: "1px solid #2a2a2a",
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <p style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>멤버 초대</p>
-        <button onClick={() => { setShowInviteModal(false); setInviteEmail(""); setInviteError(""); setInviteSent(false); }} style={{
-          background: "none", border: "none", color: "#888", fontSize: 20, cursor: "pointer"
-        }}>✕</button>
-      </div>
-      <p style={{ fontSize: 13, color: "#888", marginBottom: 20 }}>
-        초대할 멤버의 이메일을 입력하세요.
-      </p>
-
-      {inviteSent ? (
-        <div style={{ textAlign: "center", padding: "20px 0" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-          <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 8 }}>초대 완료!</p>
-          <p style={{ fontSize: 13, color: "#888", marginBottom: 20 }}>{inviteEmail}로 초대를 보냈어요.</p>
-          <button onClick={() => { setInviteEmail(""); setInviteSent(false); }} style={{
-            background: "#3b6ef8", color: "#fff", border: "none",
-            borderRadius: 8, padding: "10px 20px", fontSize: 14,
-            fontWeight: 600, cursor: "pointer",
-          }}>추가 초대하기</button>
-        </div>
-      ) : (
-        <>
-          <input
-            value={inviteEmail}
-            onChange={e => { setInviteEmail(e.target.value); setInviteError(""); }}
-            onKeyDown={e => e.key === "Enter" && handleInvite()}
-            placeholder="example@email.com"
-            autoFocus
-            type="email"
-            style={{
-              width: "100%", background: "#222222",
-              border: `1px solid ${inviteError ? "#e05555" : "#2a2a2a"}`,
-              borderRadius: 8, padding: "12px 14px", fontSize: 14,
-              color: "#fff", outline: "none", boxSizing: "border-box",
-              fontFamily: "'Noto Sans KR', sans-serif", marginBottom: 6,
-            }}
-          />
-          {inviteError && <p style={{ fontSize: 12, color: "#e05555", marginBottom: 12 }}>{inviteError}</p>}
-          {!inviteError && <div style={{ marginBottom: 12 }} />}
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => { setShowInviteModal(false); setInviteEmail(""); setInviteError(""); }} style={{
-              flex: 1, background: "#222222", border: "1px solid #2a2a2a",
-              color: "#aaa", borderRadius: 8, padding: "12px 0",
-              fontSize: 14, cursor: "pointer"
-            }}>취소</button>
-            <button onClick={handleInvite} style={{
-              flex: 1, background: "#3b6ef8", border: "none",
-              color: "#fff", borderRadius: 8, padding: "12px 0",
-              fontSize: 14, fontWeight: 700, cursor: "pointer"
-            }}>초대 보내기</button>
-          </div>
-        </>
-      )}
-    </div>
-  </div>
-)}
       {/* 삭제 확인 모달 */}
       {deleteTarget && (
         <div style={{
@@ -472,77 +232,71 @@ const handleInvite = () => {
         </div>
       </div>
 
-      {/* 상세 페이지 or 목록 */}
-      {selectedPlan ? (
-        <DetailPage plan={selectedPlan} onBack={() => setSelectedPlan(null)} onGoHome={() => navigate("/home")} onInvite={() => setShowInviteModal(true)} />
-      ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", scrollbarWidth: "none" }}>
-          {/* Top bar */}
-          <div style={{
-            position: "sticky", top: 0, zIndex: 10,
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "16px 24px", borderBottom: "1px solid #2a2a2a",
-            background: "#111111", flexShrink: 0,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{
-                display: "none", background: "none", border: "none",
-                color: "#fff", fontSize: 22, cursor: "pointer", padding: "0 4px"
-              }}>☰</button>
-              <span style={{ fontSize: 18, fontWeight: 700 }}>참여 기록</span>
-            </div>
-            
-          </div>
-
-          {/* 필터 탭 */}
-          <div style={{ padding: "16px 24px", borderBottom: "1px solid #2a2a2a", flexShrink: 0 }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              {filters.map(f => (
-                <button key={f} onClick={() => setFilter(f)} style={{
-                  padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  cursor: "pointer", border: "1px solid #2a2a2a",
-                  background: filter === f ? "#3b6ef8" : "transparent",
-                  color: filter === f ? "#fff" : "#888",
-                  transition: "all 0.15s",
-                }}>{f}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* 플랜 목록 */}
-          <div style={{ flex: 1, padding: "20px 24px", display: "flex", flexDirection: "column", width: "100%" }}>
-            {filtered.length === 0 ? (
-              <div style={{
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                flex: 1,
-              }}>
-                <div style={{
-                  width: 80, height: 80, borderRadius: 20,
-                  background: "#222222", display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  fontSize: 36, marginBottom: 20,
-                }}>🕐</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
-                  아직 참여한 모임이 없습니다.
-                </div>
-                <div style={{ fontSize: 13, color: "#666" }}>
-                  친구들과 함께 첫 모임을 만들어보세요.
-                </div>
-              </div>
-            ) : (
-              filtered.map(plan => (
-                <PlanCard
-                  key={plan.id}
-                  plan={plan}
-                  onClick={() => setSelectedPlan(plan)}
-                  onDelete={(id) => setDeleteTarget(id)}
-                />
-              ))
-            )}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", scrollbarWidth: "none" }}>
+        {/* Top bar */}
+        <div style={{
+          position: "sticky", top: 0, zIndex: 10,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "16px 24px", borderBottom: "1px solid #2a2a2a",
+          background: "#111111", flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => setSidebarOpen(true)} className="hamburger-btn" style={{
+              display: "none", background: "none", border: "none",
+              color: "#fff", fontSize: 22, cursor: "pointer", padding: "0 4px"
+            }}>☰</button>
+            <span style={{ fontSize: 18, fontWeight: 700 }}>참여 기록</span>
           </div>
         </div>
-      )}
+
+        {/* 필터 탭 */}
+        <div style={{ padding: "16px 24px", borderBottom: "1px solid #2a2a2a", flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            {filters.map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{
+                padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600,
+                cursor: "pointer", border: "1px solid #2a2a2a",
+                background: filter === f ? "#3b6ef8" : "transparent",
+                color: filter === f ? "#fff" : "#888",
+                transition: "all 0.15s",
+              }}>{f}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* 플랜 목록 */}
+        <div style={{ flex: 1, padding: "20px 24px", display: "flex", flexDirection: "column", width: "100%" }}>
+          {filtered.length === 0 ? (
+            <div style={{
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              flex: 1,
+            }}>
+              <div style={{
+                width: 80, height: 80, borderRadius: 20,
+                background: "#222222", display: "flex",
+                alignItems: "center", justifyContent: "center",
+                fontSize: 36, marginBottom: 20,
+              }}>🕐</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 8 }}>
+                아직 참여한 모임이 없습니다.
+              </div>
+              <div style={{ fontSize: 13, color: "#666" }}>
+                친구들과 함께 첫 모임을 만들어보세요.
+              </div>
+            </div>
+          ) : (
+            filtered.map(plan => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                onClick={() => navigate(`/group/${plan.id}`)}
+                onDelete={(id) => setDeleteTarget(id)}
+              />
+            ))
+          )}
+        </div>
+      </div>
 
       <style>{`
         div::-webkit-scrollbar { display: none; }

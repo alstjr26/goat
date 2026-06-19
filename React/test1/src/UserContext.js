@@ -7,7 +7,6 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 앱 시작 시 토큰 있으면 자동 로그인
   useEffect(() => {
     const token = getToken();
     if (token) {
@@ -31,8 +30,9 @@ export function UserProvider({ children }) {
       const data = await apiLogin(email, password);
       if (data.token) {
         setToken(data.token);
-        setUser({ name: data.nickname, email });
-        return { success: true, name: data.nickname };
+        const me = await apiGetMe();
+        setUser({ id: me.user_id, name: me.nickname, email: me.email });
+        return { success: true };
       }
       return { success: false, message: data.message || "로그인 실패" };
     } catch (err) {
@@ -47,11 +47,11 @@ export function UserProvider({ children }) {
       if (data.message === "서버 연결 실패. 잠시 후 다시 시도해주세요.") {
         return { success: false, message: data.message };
       }
-      // 회원가입 성공 후 자동 로그인
       const loginData = await apiLogin(email, password);
       if (loginData.token) {
         setToken(loginData.token);
-        setUser({ name, email });
+        const me = await apiGetMe();
+        setUser({ id: me.user_id, name: me.nickname, email: me.email });
         return { success: true };
       }
       return { success: false, message: "자동 로그인 실패" };

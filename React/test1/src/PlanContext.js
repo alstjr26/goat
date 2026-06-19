@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import {
-  apiCreateGroup, apiGetMyGroups, apiJoinGroup,
+  apiCreateGroup, apiGetMyGroups, apiJoinGroup, apiDeleteGroup,
 } from "./api";
 
 const PlanContext = createContext();
@@ -10,13 +10,14 @@ export function PlanProvider({ children }) {
   const [userPlans, setUserPlans] = useState([]);
   const [userEvents, setUserEvents] = useState([]);
 
+  // 토큰 체크 추가
   useEffect(() => {
-  const token = localStorage.getItem("token");
-  if (!token) return;
-  apiGetMyGroups().then(data => {
-    if (Array.isArray(data)) setUserPlans(data);
-  });
-}, []);
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    apiGetMyGroups().then(data => {
+      if (Array.isArray(data)) setUserPlans(data);
+    });
+  }, []);
 
   const createPlan = async (title, description, deadline) => {
     const result = await apiCreateGroup(title, description, deadline);
@@ -35,9 +36,16 @@ export function PlanProvider({ children }) {
     return await apiJoinGroup(groupId, email);
   };
 
-  const removePlan = (id) => {
+  // API 연동 추가
+  const removePlan = async (id) => {
+    try {
+      await apiDeleteGroup(id);
+    } catch (err) {
+      return { success: false, message: "삭제 실패" };
+    }
     setUserPlans(prev => prev.filter(p => p.group_plan_id !== id));
     setUserBlocks(prev => prev.filter(b => b.planId !== id));
+    return { success: true };
   };
 
   const addBlock = (block) => setUserBlocks(prev => [...prev, block]);
