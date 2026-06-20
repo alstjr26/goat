@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
 
 const DAYS_OF_WEEK_KO = ["일", "월", "화", "수", "목", "금", "토"];
-const HOURS = ["7am", "8am", "9am", "10am", "11am", "12pm", "1pm", "2pm", "3pm", "4pm", "5pm", "6pm", "7pm", "8pm", "9pm", "10pm", "11pm", "12am"];
-
+const HOURS = [
+  "12 AM","1 AM","2 AM","3 AM","4 AM","5 AM","6 AM","7 AM","8 AM","9 AM","10 AM","11 AM",
+  "12 PM","1 PM","2 PM","3 PM","4 PM","5 PM","6 PM","7 PM","8 PM","9 PM","10 PM","11 PM"
+];
 
 function Avatar({ color, size = 28, style = {} }) {
   return (
@@ -43,43 +45,49 @@ function AvatarGroup({ avatars, extra, size = 26, showText = false }) {
 }
 
 const INIT_BLOCKS = [];
-
-const CELL_HEIGHT = 54;
-const START_HOUR = 7;
+const CELL_HEIGHT = 60;
 
 function CalendarBlock({ block, onClick }) {
-  const top = (block.startHour - START_HOUR) * CELL_HEIGHT;
+  const top = block.startHour * CELL_HEIGHT;
   const height = (block.endHour - block.startHour) * CELL_HEIGHT;
   const isBlue = block.type === "blue";
+  const color = block.color || "#3b6ef8";
+
   return (
     <div onClick={onClick} style={{
       position: "absolute",
-      top: top + 2, left: 4, right: 4,
+      top: top + 2, left: 2, right: 2,
       height: height - 4,
-      background: isBlue ? "#3b6ef8" : (block.fromMyCalendar ? `${block.color || "#4285f4"}33` : "#222222"),
-      borderRadius: 8,
-      borderLeft: block.fromMyCalendar ? `3px solid ${block.color || "#4285f4"}` : "none",
-      padding: isBlue ? "8px 10px" : "6px 8px",
+      background: isBlue ? "#3b6ef8" : "transparent",
+      border: isBlue ? "none" : `1px solid ${color}`,
+      borderLeft: `3px solid ${isBlue ? "#3b6ef8" : color}`,
+      borderRadius: 4,
+      padding: "4px 6px",
+      fontSize: 11, fontWeight: 600,
       display: "flex", flexDirection: "column",
       justifyContent: "flex-start", gap: 4,
+      overflow: "hidden",
       cursor: "pointer", transition: "filter 0.15s",
     }}
-      onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.2)"}
+      onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.3)"}
       onMouseLeave={e => e.currentTarget.style.filter = "brightness(1)"}
     >
       {isBlue && block.avatars && block.avatars.length > 0 && (
-        <AvatarGroup avatars={block.avatars} extra={block.extra} size={24} />
+        <AvatarGroup avatars={block.avatars} extra={block.extra} size={20} />
       )}
       {block.title && (
-        <div style={{ fontSize: 11, color: "#fff", fontWeight: 600, padding: "0 2px" }}>
+        <div style={{ color: isBlue ? "#fff" : color, fontSize: 11, fontWeight: 600 }}>
           {block.title}
+        </div>
+      )}
+      {!isBlue && (
+        <div style={{ fontSize: 10, color: "#aaa" }}>
+          {HOURS[block.startHour]} - {HOURS[block.endHour]}
         </div>
       )}
     </div>
   );
 }
-
-
 
 const NAV_ITEMS = [
   { label: "새 모임", icon: "+" },
@@ -120,7 +128,7 @@ export default function Home() {
   const [modal, setModal] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
+  const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
 
   const today = new Date();
   const startOfWeek = new Date(today);
@@ -135,10 +143,7 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
 
   const closeModal = () => setModal(null);
 
-  
-
   const handleLoadSchedule = () => {
-    console.log("userEvents:", userEvents);
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay() + 1 + weekOffset * 7);
     weekStart.setHours(0, 0, 0, 0);
@@ -146,12 +151,11 @@ const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
     weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
 
-const weekEvents = userEvents.filter(ev => {
-  const evDate = new Date(ev.date + "T00:00:00");
-  evDate.setHours(0, 0, 0, 0);
-  return evDate >= weekStart && evDate <= weekEnd;
-});
-
+    const weekEvents = userEvents.filter(ev => {
+      const evDate = new Date(ev.isoDate + "T00:00:00");
+      evDate.setHours(0, 0, 0, 0);
+      return evDate >= weekStart && evDate <= weekEnd;
+    });
 
     const ScheduleModal = () => {
       const [sel, setSel] = React.useState(new Set());
@@ -164,23 +168,23 @@ const weekEvents = userEvents.filter(ev => {
         });
       };
 
-const handleConfirm = () => {
-  const chosenEvents = weekEvents.filter(ev => sel.has(ev.id));
-  setInitBlocks(prev => {
-    const filtered = prev.filter(b => !b.fromMyCalendar);
-    const newBlocks = chosenEvents.map(ev => ({
-      day: ev.day,  // date 계산 대신 day 직접 사용
-      startHour: ev.startHour,
-      endHour: ev.endHour,
-      type: "gray-light",
-      title: ev.title,
-      color: ev.color,
-      fromMyCalendar: true,
-    }));
-    return [...filtered, ...newBlocks];
-  });
-  closeModal();
-};
+      const handleConfirm = () => {
+        const chosenEvents = weekEvents.filter(ev => sel.has(ev.id));
+        setInitBlocks(prev => {
+          const filtered = prev.filter(b => !b.fromMyCalendar);
+          const newBlocks = chosenEvents.map(ev => ({
+            day: ev.weekDay,
+            startHour: ev.startHour,
+            endHour: ev.endHour,
+            type: "gray-light",
+            title: ev.title,
+            color: ev.color,
+            fromMyCalendar: true,
+          }));
+          return [...filtered, ...newBlocks];
+        });
+        closeModal();
+      };
 
       return (
         <div>
@@ -252,7 +256,7 @@ const handleConfirm = () => {
     });
   };
 
-const handleBlockClick = (block) => {
+  const handleBlockClick = (block) => {
     const plan = userPlans.find(p => p.id === block.planId);
     setModal({
       type: "block",
@@ -261,7 +265,7 @@ const handleBlockClick = (block) => {
         <div>
           <p style={{ color: "#aaa", fontSize: 13, marginBottom: 8 }}>📅 {DAYS[block.day]}</p>
           <p style={{ color: "#fff", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
-            {block.startHour}:00 ~ {block.endHour}:00
+            {HOURS[block.startHour]} ~ {HOURS[block.endHour]}
           </p>
           {block.title && (
             <p style={{ color: "#fff", fontSize: 14, marginBottom: 12 }}>📋 {block.title}</p>
@@ -310,6 +314,7 @@ const handleBlockClick = (block) => {
       )
     });
   };
+
   const openSettings = () => navigate("/settings");
   const handleNavClick = (label) => {
     setActiveNav(label);
@@ -346,17 +351,17 @@ const handleBlockClick = (block) => {
                 color: "#aaa", borderRadius: 8, padding: "12px 0", fontSize: 14, cursor: "pointer"
               }}>취소</button>
               <button onClick={() => {
-  if (deleteConfirm.planId) {
-    removeBlock(deleteConfirm.planId);
-  } else {
-    setInitBlocks(prev => prev.filter(b =>
-      !(b.day === deleteConfirm.day &&
-        b.startHour === deleteConfirm.startHour &&
-        b.endHour === deleteConfirm.endHour)
-    ));
-  }
-  setDeleteConfirm(null);
-}} style={{
+                if (deleteConfirm.planId) {
+                  removeBlock(deleteConfirm.planId);
+                } else {
+                  setInitBlocks(prev => prev.filter(b =>
+                    !(b.day === deleteConfirm.day &&
+                      b.startHour === deleteConfirm.startHour &&
+                      b.endHour === deleteConfirm.endHour)
+                  ));
+                }
+                setDeleteConfirm(null);
+              }} style={{
                 flex: 1, background: "#e05555", border: "none",
                 color: "#fff", borderRadius: 8, padding: "12px 0",
                 fontSize: 14, fontWeight: 700, cursor: "pointer"
@@ -369,11 +374,7 @@ const handleBlockClick = (block) => {
       {modal && (
         <Modal title={
           modal.type === "schedule" ? "내 일정 불러오기" :
-          modal.type === "vote" ? "장소 투표" :
-          modal.type === "newplan" ? "새 모임 만들기" :
-          modal.type === "block" ? "일정 상세" :
-          modal.type === "recommend" ? "추천 일정" :
-          modal.type === "noVote" ? "알림" : ""
+          modal.type === "block" ? "일정 상세" : ""
         } onClose={closeModal}
           onDelete={modal?.block ? () => { setDeleteConfirm(modal.block); closeModal(); } : null}
         >
@@ -437,12 +438,10 @@ const handleBlockClick = (block) => {
       </div>
 
       {/* 가운데 + 오른쪽 전체 스크롤 영역 */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto",
-        scrollbarWidth: "none", msOverflowStyle: "none" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Top bar */}
         <div style={{
-          position: "sticky", top: 0, zIndex: 10,
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "16px 24px", borderBottom: "1px solid #2a2a2a",
           background: "#111111", flexShrink: 0,
@@ -474,7 +473,6 @@ const handleBlockClick = (block) => {
 
         {/* Sub toolbar */}
         <div style={{
-          position: "sticky", top: 57, zIndex: 10,
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "12px 24px", borderBottom: "1px solid #2a2a2a",
           background: "#111111", flexShrink: 0,
@@ -490,36 +488,45 @@ const handleBlockClick = (block) => {
               }}>{v}</button>
             ))}
           </div>
-          
         </div>
 
         {/* 캘린더 + 오른쪽 패널 */}
-        <div style={{ display: "flex", flex: 1 }}>
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-          {/* Calendar */}
-          <div style={{ flex: 1, padding: "0 0 24px 24px", minWidth: 0 }}>
+          {/* Calendar - MyCalendar와 동일 구조 (0~23시, 24칸, 스크롤 가능) */}
+          <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
+            <div style={{
+              display: "flex", position: "sticky", top: 0,
+              background: "#111111", zIndex: 5, borderBottom: "1px solid #2a2a2a",
+            }}>
+              <div style={{ width: 80, flexShrink: 0 }} />
+              {DAYS.map((day, di) => (
+                <div key={di} style={{
+                  flex: 1, height: 48, display: "flex", alignItems: "center",
+                  justifyContent: "center", fontSize: 12, color: "#aaa",
+                  fontWeight: 500, borderLeft: "1px solid #2a2a2a",
+                }}>{day}</div>
+              ))}
+            </div>
+
             <div style={{ display: "flex" }}>
-              <div style={{ width: 52, flexShrink: 0 }}>
-                <div style={{ height: 36 }} />
-                {HOURS.map(h => (
-                  <div key={h} style={{
+              <div style={{ width: 80, flexShrink: 0 }}>
+                {HOURS.map((h, i) => (
+                  <div key={i} style={{
                     height: CELL_HEIGHT, display: "flex", alignItems: "flex-start",
-                    paddingTop: 6, color: "#555", fontSize: 12,
+                    justifyContent: "flex-end", paddingRight: 10, paddingTop: 4,
+                    color: "#555", fontSize: 11,
                   }}>{h}</div>
                 ))}
               </div>
+
               {DAYS.map((day, di) => (
-                <div key={day} style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    height: 36, display: "flex", alignItems: "center",
-                    justifyContent: "center", fontSize: 12, color: "#aaa",
-                    fontWeight: 500, borderBottom: "1px solid #2a2a2a",
-                  }}>{day}</div>
+                <div key={di} style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ position: "relative" }}>
-                    {HOURS.map(h => (
-                      <div key={h} style={{
+                    {HOURS.map((_, hi) => (
+                      <div key={hi} style={{
                         height: CELL_HEIGHT,
-                        borderBottom: "1px solid #2a2a2a",
+                        borderBottom: "1px solid #1e1e1e",
                         borderLeft: "1px solid #2a2a2a",
                       }} />
                     ))}
@@ -548,8 +555,6 @@ const handleBlockClick = (block) => {
               onMouseEnter={e => e.currentTarget.style.background = "#2a2a2a"}
               onMouseLeave={e => e.currentTarget.style.background = "#222222"}
             >내 일정 불러오기</button>
-
-            
           </div>
         </div>
       </div>
@@ -567,7 +572,6 @@ const handleBlockClick = (block) => {
           .mobile-overlay { display: block !important; }
           .hamburger-btn { display: block !important; }
           .right-panel { display: none !important; }
-          .lang-label { display: none !important; }
         }
       `}</style>
     </div>

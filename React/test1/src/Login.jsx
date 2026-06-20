@@ -31,7 +31,7 @@ function Register({ onBack }) {
               <span style={{ color: "#555", fontSize: 13 }}>또는</span>
               <div style={{ flex: 1, height: 1, background: "#2e2e2e" }} />
             </div>
-            
+
             <p style={{ textAlign: "center", marginTop: 24, fontSize: 13, color: "#888" }}>
               이미 계정이 있나요?{" "}
               <span onClick={onBack} style={{ color: "#4f8ef7", cursor: "pointer" }}>로그인</span>
@@ -127,7 +127,7 @@ function Register({ onBack }) {
             <button onClick={async () => {
               const result = await register(name, email, password);
               if (result.success) {
-                navigate('/home');
+                navigate('/mypage');
               } else {
                 alert(result.message);
               }
@@ -203,19 +203,19 @@ function Login() {
   }
 
   const handleLogin = async () => {
-  const id = userId.trim();
-  const pw = password.trim();
-  if (!id || !pw) {
-    alert('아이디와 비밀번호를 입력해주세요.');
-    return;
-  }
-  const result = await login(id, pw);
-  if (result.success) {
-    navigate('/home');
-  } else {
-    alert(result.message);
-  }
-};
+    const id = userId.trim();
+    const pw = password.trim();
+    if (!id || !pw) {
+      alert('이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+    const result = await login(id, pw);
+    if (result?.success) {
+      navigate('/mypage');
+    } else {
+      alert(result?.message || '로그인에 실패했습니다.');
+    }
+  };
 
   const handleUserIdKeyDown = (e) => {
     if (e.key === 'Enter') passwordRef.current.focus();
@@ -224,8 +224,6 @@ function Login() {
   const handlePasswordKeyDown = (e) => {
     if (e.key === 'Enter') handleLogin();
   };
-
-  
 
   return (
     <div style={{
@@ -251,9 +249,9 @@ function Login() {
         }}>상대성 시간</h1>
 
         <div style={{ marginBottom: 18 }}>
-          <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 500, color: "#ffffff", marginBottom: 8 }}>아이디</label>
+          <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 500, color: "#ffffff", marginBottom: 8 }}>이메일</label>
           <input
-            type="text" placeholder="아이디를 입력하세요"
+            type="email" placeholder="이메일을 입력하세요"
             value={userId} onChange={(e) => setUserId(e.target.value)}
             onKeyDown={handleUserIdKeyDown}
             style={{
@@ -305,8 +303,6 @@ function Login() {
           <span style={{ color: "#3a3a3a", fontSize: "0.82rem" }}>|</span>
           <span style={{ color: "#aaaaaa", fontSize: "0.82rem", textDecoration: "none", padding: "0 14px", cursor: "pointer" }}>비밀번호 찾기</span>
         </div>
-
-        
       </div>
     </div>
   );

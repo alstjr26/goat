@@ -23,14 +23,16 @@ export function PlanProvider({ children }) {
     if (Array.isArray(data)) {
       setUserEvents(data.map(s => {
         const start = new Date(s.start_time);
+        const end = new Date(s.end_time);
         return {
           id: s.schedule_id,
-          date: `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`,
-          day: (start.getDay() + 6) % 7,
+          isoDate: `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`,
+          date: start.toDateString(),
+          weekDay: (start.getDay() + 6) % 7,
           startHour: start.getHours(),
-          endHour: new Date(s.end_time).getHours(),
+          endHour: end.getHours(),
           title: s.title,
-          color: "#4285f4",
+          color: "#888888",
         };
       }));
     }

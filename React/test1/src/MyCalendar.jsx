@@ -23,11 +23,9 @@ const LABELS = [
   { name: "과제", color: "#fbbc04" },
   { name: "알바", color: "#ff6d00" },
   { name: "스터디", color: "#ea4335" },
-
 ];
 
-const EVENT_COLORS = ["#4285f4", "#34a853", "#fbbc04", "#ff6d00", "#ea4335", "#9c27b0", "#00bcd4", "#ff4081", "#8bc34a", "#ff9800"];
-let colorIndex = 0;
+const DEFAULT_COLOR = "#888888";
 
 const CELL_HEIGHT = 60;
 
@@ -55,10 +53,12 @@ export default function MyCalendar() {
           return {
             id: s.schedule_id,
             date: start.toDateString(),
+            isoDate: `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`,
+            weekDay: (start.getDay() + 6) % 7,
             startHour: start.getHours(),
             endHour: end.getHours(),
             title: s.title,
-            color: EVENT_COLORS[colorIndex++ % EVENT_COLORS.length],
+            color: DEFAULT_COLOR,
           };
         });
         setEvents(loaded);
@@ -122,7 +122,7 @@ export default function MyCalendar() {
     const posY = my + popupH > window.innerHeight ? window.innerHeight - popupH - 16 : my;
     setSelectedRange({ day: di, start, end });
     setTimeout(() => {
-      setPopup({ day: di, startHour: start, endHour: end, title: "", color: "#4285f4", memo: "", link: "", dateStr, posX, posY });
+      setPopup({ day: di, startHour: start, endHour: end, title: "", color: null, memo: "", link: "", dateStr, posX, posY });
       setShowColorPicker(false);
     }, 0);
   };
@@ -153,16 +153,18 @@ export default function MyCalendar() {
     return;
   }
 
-  const autoColor = EVENT_COLORS[colorIndex % EVENT_COLORS.length];
-  colorIndex++;
+  const isoDate = `${eventDate.getFullYear()}-${String(eventDate.getMonth()+1).padStart(2,'0')}-${String(eventDate.getDate()).padStart(2,'0')}`;
+
   const newEvent = {
     id: result.schedule_id,
     day: popup.day,
+    weekDay: (eventDate.getDay() + 6) % 7,
     date: eventDate.toDateString(),
+    isoDate,
     startHour: popup.startHour,
     endHour: popup.endHour,
     title: popup.title,
-    color: popup.color !== "#4285f4" ? popup.color : autoColor,
+    color: popup.color || DEFAULT_COLOR,
     memo: popup.memo,
     link: popup.link,
   };
@@ -346,7 +348,7 @@ export default function MyCalendar() {
                           const posX = e.clientX + 316 > window.innerWidth ? e.clientX - 308 : e.clientX + 8;
                           const posY = e.clientY + 320 > window.innerHeight ? window.innerHeight - 336 : e.clientY;
                           setSelectedRange({ day: di, start: hi, end: hi + 1 });
-                          setPopup({ day: di, startHour: hi, endHour: hi + 1, title: "", color: "#4285f4", memo: "", link: "", dateStr, posX, posY });
+                          setPopup({ day: di, startHour: hi, endHour: hi + 1, title: "", color: null, memo: "", link: "", dateStr, posX, posY });
                           setShowColorPicker(false);
                         }}
                         style={{
@@ -430,7 +432,7 @@ export default function MyCalendar() {
             <div style={{ position: "relative" }}>
               <div onClick={() => setShowColorPicker(v => !v)} style={{
                 width: 24, height: 24, borderRadius: "50%",
-                background: popup.color, cursor: "pointer", border: "2px solid #555",
+                background: popup.color || DEFAULT_COLOR, cursor: "pointer", border: "2px solid #555",
               }} />
               {showColorPicker && (
                 <div style={{
