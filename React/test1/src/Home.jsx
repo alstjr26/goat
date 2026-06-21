@@ -44,7 +44,6 @@ function AvatarGroup({ avatars, extra, size = 26, showText = false }) {
   );
 }
 
-const INIT_BLOCKS = [];
 const CELL_HEIGHT = 60;
 
 function CalendarBlock({ block, onClick }) {
@@ -126,19 +125,30 @@ export default function Home() {
   const [modal, setModal] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
 
-  const [initBlocks, setInitBlocks] = useState(() => {
+useEffect(() => {
+  if (!selectedGroupId && userPlans.length > 0) {
+    setSelectedGroupId(String(userPlans[0].group_plan_id));
+  }
+}, [userPlans, selectedGroupId]);
+
+  // 그룹(모임)별로 "내 일정 불러오기"로 선택한 블록을 따로 저장
+  const [initBlocksByGroup, setInitBlocksByGroup] = useState(() => {
     try {
-      const saved = localStorage.getItem("home_loaded_blocks");
-      return saved ? JSON.parse(saved) : INIT_BLOCKS;
+      const saved = localStorage.getItem("home_loaded_blocks_by_group");
+      return saved ? JSON.parse(saved) : {};
     } catch {
-      return INIT_BLOCKS;
+      return {};
     }
   });
 
   useEffect(() => {
-    localStorage.setItem("home_loaded_blocks", JSON.stringify(initBlocks));
-  }, [initBlocks]);
+    localStorage.setItem("home_loaded_blocks_by_group", JSON.stringify(initBlocksByGroup));
+  }, [initBlocksByGroup]);
+
+  // 전체 모임 선택 시 모든 그룹의 연결된 일정을 합쳐서 보여줌
+  const currentInitBlocks = initBlocksByGroup[selectedGroupId] || [];
 
   const today = new Date();
   const startOfWeek = new Date(today);
@@ -173,8 +183,14 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
       return evDate >= weekStart && evDate <= weekEnd;
     });
 
+    const alreadySelected = new Set(
+      (initBlocksByGroup[selectedGroupId] || [])
+        .filter(b => b.sourceEventId != null)
+        .map(b => b.sourceEventId)
+    );
+
     const ScheduleModal = () => {
-      const [sel, setSel] = React.useState(new Set());
+      const [sel, setSel] = React.useState(alreadySelected);
 
       const toggle = (id) => {
         setSel(prev => {
@@ -185,23 +201,21 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
       };
 
       const handleConfirm = () => {
-  const chosenEvents = weekEvents.filter(ev => sel.has(ev.id));
-  setInitBlocks(prev => {
-    const filtered = prev.filter(b => !b.fromMyCalendar);
-    const newBlocks = chosenEvents.map(ev => ({
-      day: ev.weekDay,
-      isoDate: ev.isoDate,
-      startHour: ev.startHour,
-      endHour: ev.endHour,
-      type: "gray-light",
-      title: ev.title,
-      color: ev.color,
-      fromMyCalendar: true,
-    }));
-    return [...filtered, ...newBlocks];
-  });
-  closeModal();
-};
+        const chosenEvents = weekEvents.filter(ev => sel.has(ev.id));
+        const newBlocks = chosenEvents.map(ev => ({
+          day: ev.weekDay,
+          isoDate: ev.isoDate,
+          startHour: ev.startHour,
+          endHour: ev.endHour,
+          type: "gray-light",
+          title: ev.title,
+          color: ev.color,
+          fromMyCalendar: true,
+          sourceEventId: ev.id,
+        }));
+        setInitBlocksByGroup(prev => ({ ...prev, [selectedGroupId]: newBlocks }));
+        closeModal();
+      };
 
       return (
         <div>
@@ -319,7 +333,7 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
               color: "#aaa", borderRadius: 8, padding: "12px 0",
               fontSize: 14, cursor: "pointer"
             }}>닫기</button>
-            {block.planId && (
+            {(block.planId || block.fromMyCalendar) && (
               <button onClick={() => { setDeleteConfirm(block); closeModal(); }} style={{
                 flex: 1, background: "#e05555", border: "none",
                 color: "#fff", borderRadius: 8, padding: "12px 0",
@@ -370,12 +384,19 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
               <button onClick={() => {
                 if (deleteConfirm.planId) {
                   removeBlock(deleteConfirm.planId);
-                } else {
-                  setInitBlocks(prev => prev.filter(b =>
-                    !(b.day === deleteConfirm.day &&
-                      b.startHour === deleteConfirm.startHour &&
-                      b.endHour === deleteConfirm.endHour)
-                  ));
+                } else if (deleteConfirm.fromMyCalendar) {
+                  setInitBlocksByGroup(prev => {
+                    const groupBlocks = prev[selectedGroupId] || [];
+                    return {
+                      ...prev,
+                      [selectedGroupId]: groupBlocks.filter(b =>
+                        !(b.day === deleteConfirm.day &&
+                          b.startHour === deleteConfirm.startHour &&
+                          b.endHour === deleteConfirm.endHour &&
+                          b.title === deleteConfirm.title)
+                      ),
+                    };
+                  });
                 }
                 setDeleteConfirm(null);
               }} style={{
@@ -468,7 +489,21 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
               display: "none", background: "none", border: "none",
               color: "#fff", fontSize: 22, cursor: "pointer", padding: "0 4px"
             }}>☰</button>
-            <span style={{ fontSize: 18, fontWeight: 700 }}>GOAT 미팅</span>
+            <select
+  value={selectedGroupId || ""}
+  onChange={e => setSelectedGroupId(e.target.value)}
+  style={{
+    fontSize: 18, fontWeight: 700, background: "transparent",
+    color: "#fff", border: "none", outline: "none", cursor: "pointer",
+    fontFamily: "'Noto Sans KR', sans-serif",
+  }}
+>
+  {userPlans.map(p => (
+    <option key={p.group_plan_id} value={p.group_plan_id} style={{ background: "#222" }}>
+      {p.title}
+    </option>
+  ))}
+</select>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button onClick={() => setWeekOffset(prev => prev - 1)} style={{
                 background: "none", border: "none", color: "#888",
@@ -510,7 +545,7 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
         {/* 캘린더 + 오른쪽 패널 */}
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
-          {/* Calendar - MyCalendar와 동일 구조 (0~23시, 24칸, 스크롤 가능) */}
+          {/* Calendar */}
           <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
             <div style={{
               display: "flex", position: "sticky", top: 0,
@@ -547,15 +582,17 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
                         borderLeft: "1px solid #2a2a2a",
                       }} />
                     ))}
-                    {[...initBlocks, ...userBlocks].filter(b =>
-  b.isoDate ? b.isoDate === DAYS_ISO[di] : b.day === di
-).map((block, bi) => (
-  <CalendarBlock
-    key={block.planId ? `plan-${block.planId}` : `${block.isoDate || block.day}-${block.startHour}-${block.title}-${bi}`}
-    block={block}
-    onClick={() => handleBlockClick(block)}
-  />
-))}
+                    {[...currentInitBlocks, ...userBlocks].filter(b => {
+  const dateMatch = b.isoDate ? b.isoDate === DAYS_ISO[di] : b.day === di;
+  const groupMatch = String(b.planId) === String(selectedGroupId) || b.fromMyCalendar;
+  return dateMatch && groupMatch;
+}).map((block, bi) => (
+                      <CalendarBlock
+                        key={block.planId ? `plan-${block.planId}` : `${block.isoDate || block.day}-${block.startHour}-${block.title}-${bi}`}
+                        block={block}
+                        onClick={() => handleBlockClick(block)}
+                      />
+                    ))}
                   </div>
                 </div>
               ))}
