@@ -7,6 +7,16 @@ const BLOCK_COLORS = ["#3b6ef8", "#34a853", "#fbbc04", "#ea4335", "#9c27b0", "#0
 
 const PlanContext = createContext();
 
+// 일정 id별 색상을 localStorage에 저장/복원 (MyCalendar.jsx와 동일한 키 사용)
+function loadColorMap() {
+  try {
+    const saved = localStorage.getItem("schedule_colors");
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
 // "2026. 06. 22 12:00 ~ 2026. 06. 22 14:00" 형식의 description을
 // 정규식으로 직접 추출해서 파싱합니다.
 function parseDateTimeChunk(str) {
@@ -77,6 +87,7 @@ export function PlanProvider({ children }) {
 
     apiGetSchedules().then(data => {
       if (Array.isArray(data)) {
+        const colorMap = loadColorMap();
         setUserEvents(data.map(s => {
           const start = new Date(s.start_time);
           const end = new Date(s.end_time);
@@ -88,7 +99,7 @@ export function PlanProvider({ children }) {
             startHour: start.getHours(),
             endHour: end.getHours(),
             title: s.title,
-            color: BLOCK_COLORS[Math.abs(s.schedule_id) % BLOCK_COLORS.length],
+            color: colorMap[s.schedule_id] || BLOCK_COLORS[Math.abs(s.schedule_id) % BLOCK_COLORS.length],
           };
         }));
       }

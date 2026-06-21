@@ -550,7 +550,11 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
                     {[...initBlocks, ...userBlocks].filter(b =>
   b.isoDate ? b.isoDate === DAYS_ISO[di] : b.day === di
 ).map((block, bi) => (
-  <CalendarBlock key={bi} block={block} onClick={() => handleBlockClick(block)} />
+  <CalendarBlock
+    key={block.planId ? `plan-${block.planId}` : `${block.isoDate || block.day}-${block.startHour}-${block.title}-${bi}`}
+    block={block}
+    onClick={() => handleBlockClick(block)}
+  />
 ))}
                   </div>
                 </div>

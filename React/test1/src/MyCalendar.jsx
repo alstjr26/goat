@@ -1,5 +1,5 @@
-import { apiGetSchedules, apiPostSchedule, apiDeleteSchedule } from "./api";
-import { useState, useRef, useEffect} from "react";
+import { apiPostSchedule, apiDeleteSchedule } from "./api";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
 
@@ -29,6 +29,20 @@ const DEFAULT_COLOR = "#888888";
 
 const CELL_HEIGHT = 60;
 
+// 일정 id별 색상을 localStorage에 저장/복원 (서버가 색상을 저장하지 않으므로)
+function loadColorMap() {
+  try {
+    const saved = localStorage.getItem("schedule_colors");
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveColorMap(map) {
+  localStorage.setItem("schedule_colors", JSON.stringify(map));
+}
+
 export default function MyCalendar() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("내 일정");
@@ -36,8 +50,7 @@ export default function MyCalendar() {
 
   const [weekOffset, setWeekOffset] = useState(0);
   const { userEvents, addEvent, removeEvent } = usePlan();
-  const [events, setEvents] = useState([]);
-  const allEvents = [...events, ...userEvents];
+  const allEvents = userEvents;
   const [popup, setPopup] = useState(null);
   const [detailModal, setDetailModal] = useState(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -45,27 +58,7 @@ export default function MyCalendar() {
   const [selectedRange, setSelectedRange] = useState(null);
   const dragRef = useRef(null);
 
-  useEffect(() => {
-    apiGetSchedules().then(data => {
-      if (Array.isArray(data)) {
-        const loaded = data.map(s => {
-          const start = new Date(s.start_time);
-          const end = new Date(s.end_time);
-          return {
-            id: s.schedule_id,
-            date: start.toDateString(),
-            isoDate: `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`,
-            weekDay: (start.getDay() + 6) % 7,
-            startHour: start.getHours(),
-            endHour: end.getHours(),
-            title: s.title,
-            color: DEFAULT_COLOR,
-          };
-        });
-        setEvents(loaded);
-      }
-    });
-  }, []);
+
 
   const today = new Date();
   const startOfWeek = new Date(today);
@@ -170,22 +163,32 @@ export default function MyCalendar() {
       memo: popup.memo,
       link: popup.link,
     };
-    setEvents(prev => [...prev, newEvent]);
+
+    if (popup.color) {
+      const colorMap = loadColorMap();
+      colorMap[result.schedule_id] = popup.color;
+      saveColorMap(colorMap);
+    }
+
+   
     addEvent(newEvent);
     setPopup(null);
     setSelectedRange(null);
   };
 
-  const handleDeleteEvent = async (id) => {
-    try {
-      await apiDeleteSchedule(id);
-      setEvents(prev => prev.filter(e => e.id !== id));
-      removeEvent(id);
-      setDetailModal(null);
-    } catch (err) {
-      alert("일정 삭제에 실패했습니다.");
-    }
-  };
+const handleDeleteEvent = async (id) => {
+  try {
+    await apiDeleteSchedule(id);
+    removeEvent(id);
+    setDetailModal(null);
+
+    const colorMap = loadColorMap();
+    delete colorMap[id];
+    saveColorMap(colorMap);
+  } catch (err) {
+    alert("일정 삭제에 실패했습니다.");
+  }
+};
 
   return (
     <div className="page-fade" style={{
