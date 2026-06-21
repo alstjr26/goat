@@ -165,14 +165,16 @@ export default function NewPlan() {
 const handleCreate = async () => {
   if (!title.trim()) { alert("플랜 제목을 입력해주세요!"); return; }
 
-  const parseHour = (timeStr) => {
-    if (!timeStr) return 9;
-    const [h] = timeStr.split(":");
-    return parseInt(h) || 9;
-  };
+const parseHour = (timeStr) => {
+  if (!timeStr) return null;
+  const [h] = timeStr.split(":");
+  if (h === "" || h === undefined) return null;
+  const n = parseInt(h, 10);
+  return isNaN(n) ? null : n;
+};
 
-  const startH = parseHour(startTime);
-  const endH = parseHour(endTime) || startH + 1;
+const startH = parseHour(startTime) ?? 9;
+const endH = parseHour(endTime) ?? (startH + 1);;
   const deadlineISO = parseDateTimeToISO(endDate || startDate, endTime);
 
 const result = await createPlan(
@@ -187,25 +189,26 @@ const result = await createPlan(
   }
 
   // 시작 날짜 기반으로 요일 인덱스 계산
-  if (startDate) {
-    const nums = startDate.replace(/\./g, '').trim().split(' ').filter(Boolean).map(Number);
-    const [y, m, d] = nums;
-    const dateObj = new Date(y, m - 1, d);
-    const dayOfWeek = dateObj.getDay(); // 0=일 ~ 6=토
-    const di = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 월=0 ~ 일=6
+ if (startDate) {
+  const nums = startDate.replace(/\./g, '').trim().split(' ').filter(Boolean).map(Number);
+  const [y, m, d] = nums;
+  const dateObj = new Date(y, m - 1, d);
+  const dayOfWeek = dateObj.getDay();
+  const di = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const isoDate = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 
-    addBlock({
-      planId: result.id,
-      day: di,
-      startHour: startH,
-      endHour: endH,
-      type: "blue",
-      title,
-      avatars: [],
-      extra: 0,
-    });
-  }
-
+  addBlock({
+    planId: result.id,
+    day: di,
+    isoDate,
+    startHour: startH,
+    endHour: endH,
+    type: "blue",
+    title,
+    avatars: [],
+    extra: 0,
+  });
+}
   navigate("/home");
 };
 

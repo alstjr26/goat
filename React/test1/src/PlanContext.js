@@ -3,6 +3,8 @@ import {
   apiCreateGroup, apiGetMyGroups, apiJoinGroup, apiDeleteGroup, apiGetSchedules,
 } from "./api";
 
+const BLOCK_COLORS = ["#3b6ef8", "#34a853", "#fbbc04", "#ea4335", "#9c27b0", "#00bcd4", "#ff6d00", "#8bc34a"];
+
 const PlanContext = createContext();
 
 export function PlanProvider({ children }) {
@@ -10,34 +12,33 @@ export function PlanProvider({ children }) {
   const [userPlans, setUserPlans] = useState([]);
   const [userEvents, setUserEvents] = useState([]);
 
-  // 토큰 체크 추가
   useEffect(() => {
-  const token = localStorage.getItem("token");
-  if (!token) return;
-  
-  apiGetMyGroups().then(data => {
-    if (Array.isArray(data)) setUserPlans(data);
-  });
-  
-  apiGetSchedules().then(data => {
-    if (Array.isArray(data)) {
-      setUserEvents(data.map(s => {
-        const start = new Date(s.start_time);
-        const end = new Date(s.end_time);
-        return {
-          id: s.schedule_id,
-          isoDate: `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`,
-          date: start.toDateString(),
-          weekDay: (start.getDay() + 6) % 7,
-          startHour: start.getHours(),
-          endHour: end.getHours(),
-          title: s.title,
-          color: "#888888",
-        };
-      }));
-    }
-  });
-}, []);
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    apiGetMyGroups().then(data => {
+      if (Array.isArray(data)) setUserPlans(data);
+    });
+
+    apiGetSchedules().then(data => {
+      if (Array.isArray(data)) {
+        setUserEvents(data.map(s => {
+          const start = new Date(s.start_time);
+          const end = new Date(s.end_time);
+          return {
+            id: s.schedule_id,
+            isoDate: `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`,
+            date: start.toDateString(),
+            weekDay: (start.getDay() + 6) % 7,
+            startHour: start.getHours(),
+            endHour: end.getHours(),
+            title: s.title,
+            color: BLOCK_COLORS[Math.abs(s.schedule_id) % BLOCK_COLORS.length],
+          };
+        }));
+      }
+    });
+  }, []);
 
   const createPlan = async (title, description, deadline) => {
     const result = await apiCreateGroup(title, description, deadline);
@@ -56,9 +57,7 @@ export function PlanProvider({ children }) {
     return await apiJoinGroup(groupId, email);
   };
 
-  // API 연동 추가
   const removePlan = async (id) => {
-    console.log("삭제 시도 id:", id);
     try {
       await apiDeleteGroup(id);
     } catch (err) {

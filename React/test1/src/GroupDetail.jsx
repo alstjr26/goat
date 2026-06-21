@@ -4,7 +4,6 @@ import { useUser } from "./UserContext";
 import { usePlan } from "./PlanContext";
 import {
   apiGetGroup, apiGetGroupMembers, apiJoinGroup,
-  apiGetSchedules, apiPostAvailability,
   apiGetRecommend, apiConfirmGroup, apiGetConfirm,
 } from "./api";
 
@@ -45,8 +44,6 @@ export default function GroupDetail() {
 
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);
-  const [mySchedules, setMySchedules] = useState([]);
-  const [selectedIds, setSelectedIds] = useState(new Set());
   const [recommend, setRecommend] = useState(null);
   const [confirmedMeeting, setConfirmedMeeting] = useState(null);
 
@@ -54,25 +51,18 @@ export default function GroupDetail() {
   const [inviteError, setInviteError] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
 
-  const [submitting, setSubmitting] = useState(false);
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const isOwner = group && user && group.user_id === user.id;
-  console.log('user:',user, 'group.owner_id', group?.owner_id);
+  const isOwner = group && user && group.owner_id === user.id;
 
   const loadAll = async () => {
     setLoading(true);
     const g = await apiGetGroup(id);
-    console.log("group 전체 데이터:", JSON.stringify(g));
-    
     setGroup(g);
 
     const m = await apiGetGroupMembers(id);
     setMembers(Array.isArray(m) ? m : []);
-
-    const s = await apiGetSchedules();
-    setMySchedules(Array.isArray(s) ? s : []);
 
     if (g.status === "CONFIRMED") {
       const c = await apiGetConfirm(id);
@@ -87,14 +77,6 @@ export default function GroupDetail() {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-
-  const toggleSchedule = (sid) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      next.has(sid) ? next.delete(sid) : next.add(sid);
-      return next;
-    });
-  };
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) {
@@ -113,19 +95,6 @@ export default function GroupDetail() {
     } else {
       setInviteError(result.message || "초대에 실패했어요.");
     }
-  };
-
-  const handleSubmitAvailability = async () => {
-    if (selectedIds.size === 0) {
-      alert("제출할 일정을 선택해주세요.");
-      return;
-    }
-    setSubmitting(true);
-    for (const sid of selectedIds) {
-      await apiPostAvailability(id, sid, true);
-    }
-    setSubmitting(false);
-    alert("가능 시간이 제출되었습니다.");
   };
 
   const handleLoadRecommend = async () => {
@@ -221,7 +190,7 @@ export default function GroupDetail() {
         {/* 멤버 */}
         <div style={cardStyle}>
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>멤버 ({members.length}명)</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: isOwner ? 16 : 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: group.status !== "CONFIRMED" ? 16 : 0 }}>
             {members.map((m, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 10,
@@ -247,7 +216,7 @@ export default function GroupDetail() {
             ))}
           </div>
 
-          {isOwner && group.status !== "CONFIRMED" && (
+          {group.status !== "CONFIRMED" && (
             <div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input
@@ -266,54 +235,6 @@ export default function GroupDetail() {
             </div>
           )}
         </div>
-
-        {/* 가능 시간 제출 */}
-        {group.status !== "CONFIRMED" && (
-          <div style={cardStyle}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>내 가능 시간 제출</div>
-            <div style={{ fontSize: 13, color: "#888", marginBottom: 14 }}>
-              내 시간표에서 이 모임에 제출할 시간을 선택하세요.
-            </div>
-
-            {mySchedules.length === 0 ? (
-              <div style={{ fontSize: 13, color: "#666" }}>
-                등록된 시간표가 없어요. <span onClick={() => navigate("/mycalendar")} style={{ color: "#3b6ef8", cursor: "pointer" }}>내 일정에서 추가하기</span>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-                {mySchedules.map(s => {
-                  const sel = selectedIds.has(s.schedule_id);
-                  return (
-                    <div key={s.schedule_id} onClick={() => toggleSchedule(s.schedule_id)} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      background: sel ? "#1a2a4a" : "#222222",
-                      border: sel ? "1px solid #3b6ef8" : "1px solid #2a2a2a",
-                      borderRadius: 8, padding: "10px 14px", cursor: "pointer",
-                    }}>
-                      <div style={{
-                        width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                        border: `2px solid ${sel ? "#3b6ef8" : "#555"}`,
-                        background: sel ? "#3b6ef8" : "transparent",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11, color: "#fff",
-                      }}>{sel ? "✓" : ""}</div>
-                      <div>
-                        <div style={{ fontSize: 14, color: "#fff", fontWeight: 600 }}>{s.title}</div>
-                        <div style={{ fontSize: 12, color: "#888" }}>{fmt(s.start_time)} ~ {fmt(s.end_time)}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {mySchedules.length > 0 && (
-              <button onClick={handleSubmitAvailability} disabled={submitting} style={btnPrimary}>
-                {submitting ? "제출 중..." : "선택한 시간 제출하기"}
-              </button>
-            )}
-          </div>
-        )}
 
         {/* 추천 시간 */}
         {group.status !== "CONFIRMED" && (

@@ -105,7 +105,7 @@ export default function History() {
 
   
 const normalizePlan = (p) => {
-   console.log("description:", p.description); // 
+   
   const parts = p.description?.split("~") || [];
   const startPart = parts[0]?.trim() || "";
 

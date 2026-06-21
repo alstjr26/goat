@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
 
@@ -128,16 +128,34 @@ export default function Home() {
   const [modal, setModal] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [initBlocks, setInitBlocks] = useState(INIT_BLOCKS);
+
+  const [initBlocks, setInitBlocks] = useState(() => {
+    try {
+      const saved = localStorage.getItem("home_loaded_blocks");
+      return saved ? JSON.parse(saved) : INIT_BLOCKS;
+    } catch {
+      return INIT_BLOCKS;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("home_loaded_blocks", JSON.stringify(initBlocks));
+  }, [initBlocks]);
 
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay() + 1 + weekOffset * 7);
   const DAYS = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
-    return `${DAYS_OF_WEEK_KO[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`;
-  });
+  const d = new Date(startOfWeek);
+  d.setDate(startOfWeek.getDate() + i);
+  return `${DAYS_OF_WEEK_KO[d.getDay()]} ${d.getMonth()+1}/${d.getDate()}`;
+});
+
+const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
+  const d = new Date(startOfWeek);
+  d.setDate(startOfWeek.getDate() + i);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+});
   const month = startOfWeek.getMonth() + 1;
   const weekNum = Math.ceil(startOfWeek.getDate() / 7);
 
@@ -169,22 +187,23 @@ export default function Home() {
       };
 
       const handleConfirm = () => {
-        const chosenEvents = weekEvents.filter(ev => sel.has(ev.id));
-        setInitBlocks(prev => {
-          const filtered = prev.filter(b => !b.fromMyCalendar);
-          const newBlocks = chosenEvents.map(ev => ({
-            day: ev.weekDay,
-            startHour: ev.startHour,
-            endHour: ev.endHour,
-            type: "gray-light",
-            title: ev.title,
-            color: ev.color,
-            fromMyCalendar: true,
-          }));
-          return [...filtered, ...newBlocks];
-        });
-        closeModal();
-      };
+  const chosenEvents = weekEvents.filter(ev => sel.has(ev.id));
+  setInitBlocks(prev => {
+    const filtered = prev.filter(b => !b.fromMyCalendar);
+    const newBlocks = chosenEvents.map(ev => ({
+      day: ev.weekDay,
+      isoDate: ev.isoDate,
+      startHour: ev.startHour,
+      endHour: ev.endHour,
+      type: "gray-light",
+      title: ev.title,
+      color: ev.color,
+      fromMyCalendar: true,
+    }));
+    return [...filtered, ...newBlocks];
+  });
+  closeModal();
+};
 
       return (
         <div>
@@ -530,9 +549,11 @@ export default function Home() {
                         borderLeft: "1px solid #2a2a2a",
                       }} />
                     ))}
-                    {[...initBlocks, ...userBlocks].filter(b => b.day === di).map((block, bi) => (
-                      <CalendarBlock key={bi} block={block} onClick={() => handleBlockClick(block)} />
-                    ))}
+                    {[...initBlocks, ...userBlocks].filter(b =>
+  b.isoDate ? b.isoDate === DAYS_ISO[di] : b.day === di
+).map((block, bi) => (
+  <CalendarBlock key={bi} block={block} onClick={() => handleBlockClick(block)} />
+))}
                   </div>
                 </div>
               ))}

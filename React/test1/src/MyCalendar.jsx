@@ -44,6 +44,7 @@ export default function MyCalendar() {
   const [dragging, setDragging] = useState(null);
   const [selectedRange, setSelectedRange] = useState(null);
   const dragRef = useRef(null);
+
   useEffect(() => {
     apiGetSchedules().then(data => {
       if (Array.isArray(data)) {
@@ -65,6 +66,7 @@ export default function MyCalendar() {
       }
     });
   }, []);
+
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay() + weekOffset * 7);
@@ -134,57 +136,56 @@ export default function MyCalendar() {
   };
 
   const handleAddEvent = async () => {
-  if (!popup.title.trim()) return;
+    if (!popup.title.trim()) return;
 
-  const eventDate = weekDays[popup.day];
-  const startDate = new Date(eventDate);
-  startDate.setHours(popup.startHour, 0, 0, 0);
-  const endDate = new Date(eventDate);
-  endDate.setHours(popup.endHour, 0, 0, 0);
+    const eventDate = weekDays[popup.day];
+    const startDate = new Date(eventDate);
+    startDate.setHours(popup.startHour, 0, 0, 0);
+    const endDate = new Date(eventDate);
+    endDate.setHours(popup.endHour, 0, 0, 0);
 
-  const result = await apiPostSchedule(
-    popup.title,
-    startDate.toISOString(),
-    endDate.toISOString()
-  );
+    const result = await apiPostSchedule(
+      popup.title,
+      startDate.toISOString(),
+      endDate.toISOString()
+    );
 
-  if (!result.schedule_id) {
-    alert(result.message || "일정 등록 실패");
-    return;
-  }
+    if (!result.schedule_id) {
+      alert(result.message || "일정 등록 실패");
+      return;
+    }
 
-  const isoDate = `${eventDate.getFullYear()}-${String(eventDate.getMonth()+1).padStart(2,'0')}-${String(eventDate.getDate()).padStart(2,'0')}`;
+    const isoDate = `${eventDate.getFullYear()}-${String(eventDate.getMonth()+1).padStart(2,'0')}-${String(eventDate.getDate()).padStart(2,'0')}`;
 
-  const newEvent = {
-    id: result.schedule_id,
-    day: popup.day,
-    weekDay: (eventDate.getDay() + 6) % 7,
-    date: eventDate.toDateString(),
-    isoDate,
-    startHour: popup.startHour,
-    endHour: popup.endHour,
-    title: popup.title,
-    color: popup.color || DEFAULT_COLOR,
-    memo: popup.memo,
-    link: popup.link,
+    const newEvent = {
+      id: result.schedule_id,
+      day: popup.day,
+      weekDay: (eventDate.getDay() + 6) % 7,
+      date: eventDate.toDateString(),
+      isoDate,
+      startHour: popup.startHour,
+      endHour: popup.endHour,
+      title: popup.title,
+      color: popup.color || DEFAULT_COLOR,
+      memo: popup.memo,
+      link: popup.link,
+    };
+    setEvents(prev => [...prev, newEvent]);
+    addEvent(newEvent);
+    setPopup(null);
+    setSelectedRange(null);
   };
-  setEvents(prev => [...prev, newEvent]);
-  addEvent(newEvent);
-  setPopup(null);
-  setSelectedRange(null);
-};
 
   const handleDeleteEvent = async (id) => {
-  try {
-    await apiDeleteSchedule(id);
-    setEvents(prev => prev.filter(e => e.id !== id));
-    removeEvent(id);
-    setDetailModal(null);
-  } catch (err) {
-    alert("일정 삭제에 실패했습니다.");
-  }
-};
-
+    try {
+      await apiDeleteSchedule(id);
+      setEvents(prev => prev.filter(e => e.id !== id));
+      removeEvent(id);
+      setDetailModal(null);
+    } catch (err) {
+      alert("일정 삭제에 실패했습니다.");
+    }
+  };
 
   return (
     <div className="page-fade" style={{
@@ -281,7 +282,6 @@ export default function MyCalendar() {
               }}>▶</button>
             </div>
           </div>
-          
         </div>
 
         {/* 캘린더 */}
