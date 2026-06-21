@@ -18,8 +18,7 @@ export default function MyPage() {
 const [showNicknameModal, setShowNicknameModal] = useState(false);
 const [newNickname, setNewNickname] = useState("");
   const { userPlans } = usePlan();
-  const createdCount = userPlans.filter(p => p.user_id === user?.id).length;
-const joinedCount = userPlans.filter(p => p.user_id !== user?.id).length;
+  const joinedCount = userPlans.filter(p => p.user_id !== user?.id).length;
 const handleNicknameChange = async () => {
   if (!newNickname.trim()) return;
   try {
@@ -201,13 +200,6 @@ const handleNicknameChange = async () => {
 
           {/* 통계 카드 */}
           <div style={{ display: "flex", gap: 16 }}>
-            <div style={{
-              flex: 1, background: "#1a1a1a", borderRadius: 12, padding: "20px 24px",
-              border: "1px solid #2a2a2a",
-            }}>
-              <div style={{ fontSize: 13, color: "#888", marginBottom: 8 }}>📅 생성한 일정</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#fff" }}>{createdCount}개</div>
-            </div>
             <div style={{
               flex: 1, background: "#1a1a1a", borderRadius: 12, padding: "20px 24px",
               border: "1px solid #2a2a2a",

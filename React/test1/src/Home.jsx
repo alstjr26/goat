@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePlan } from "./PlanContext";
+import { apiGetRecommend } from "./api";
 
 const DAYS_OF_WEEK_KO = ["일", "월", "화", "수", "목", "금", "토"];
 const HOURS = [
@@ -125,10 +126,21 @@ export default function Home() {
   const [modal, setModal] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [selectedGroupId, setSelectedGroupId] = useState(() => {
+  return localStorage.getItem("home_selected_group_id") || null;
+});
 
 useEffect(() => {
-  if (!selectedGroupId && userPlans.length > 0) {
+  if (selectedGroupId) {
+    localStorage.setItem("home_selected_group_id", selectedGroupId);
+  }
+}, [selectedGroupId]);
+
+useEffect(() => {
+  if (userPlans.length === 0) return;
+  // 저장된 그룹이 더 이상 존재하지 않으면(삭제됨) 첫 번째 그룹으로 대체
+  const stillExists = userPlans.some(p => String(p.group_plan_id) === String(selectedGroupId));
+  if (!selectedGroupId || !stillExists) {
     setSelectedGroupId(String(userPlans[0].group_plan_id));
   }
 }, [userPlans, selectedGroupId]);
@@ -149,7 +161,34 @@ useEffect(() => {
 
   // 전체 모임 선택 시 모든 그룹의 연결된 일정을 합쳐서 보여줌
   const currentInitBlocks = initBlocksByGroup[selectedGroupId] || [];
+  const [recommendSlots, setRecommendSlots] = useState([]);
 
+useEffect(() => {
+  if (view === "전체 결과 보기" && selectedGroupId) {
+    apiGetRecommend(selectedGroupId).then(data => {
+      if (data?.recommended) setRecommendSlots(data.recommended);
+      else setRecommendSlots([]);
+    });
+  } else {
+    setRecommendSlots([]);
+  }
+}, [view, selectedGroupId]);
+
+const recommendBlocks = recommendSlots.map((slot, i) => {
+  const start = new Date(slot.start_time);
+  const end = new Date(slot.end_time);
+  const dayOfWeek = start.getDay();
+  const di = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  return {
+    isoDate: `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`,
+    day: di,
+    startHour: start.getHours(),
+    endHour: end.getHours(),
+    type: "recommend",
+    title: `${slot.count}명 가능`,
+    color: "#4caf80",
+  };
+});
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay() + 1 + weekOffset * 7);
@@ -582,9 +621,9 @@ const DAYS_ISO = Array.from({ length: 7 }, (_, i) => {
                         borderLeft: "1px solid #2a2a2a",
                       }} />
                     ))}
-                    {[...currentInitBlocks, ...userBlocks].filter(b => {
+                    {[...currentInitBlocks, ...userBlocks, ...(view === "전체 결과 보기" ? recommendBlocks : [])].filter(b => {
   const dateMatch = b.isoDate ? b.isoDate === DAYS_ISO[di] : b.day === di;
-  const groupMatch = String(b.planId) === String(selectedGroupId) || b.fromMyCalendar;
+  const groupMatch = String(b.planId) === String(selectedGroupId) || b.fromMyCalendar || b.type === "recommend";
   return dateMatch && groupMatch;
 }).map((block, bi) => (
                       <CalendarBlock

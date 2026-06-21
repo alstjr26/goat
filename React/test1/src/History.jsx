@@ -96,7 +96,6 @@ function PlanCard({ plan, onClick, onDelete }) {
 export default function History() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("참여 기록");
-  const [filter, setFilter] = useState("전체");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { userPlans, removePlan } = usePlan();
   const { user } = useUser();
@@ -125,13 +124,7 @@ const normalizePlan = (p) => {
 };
   const allPlans = user ? [...plans, ...userPlans.map(normalizePlan)] : [...plans];
 
-  const filters = ["전체", "생성한 플랜", "참여한 플랜"];
-
-  const filtered = allPlans.filter(p => {
-    if (filter === "생성한 플랜") return p.isMine;
-    if (filter === "참여한 플랜") return !p.isMine;
-    return true;
-  });
+  const filtered = allPlans;
 
   const handleNavClick = (label) => {
     setActiveNav(label);
@@ -254,21 +247,6 @@ const normalizePlan = (p) => {
               color: "#fff", fontSize: 22, cursor: "pointer", padding: "0 4px"
             }}>☰</button>
             <span style={{ fontSize: 18, fontWeight: 700 }}>참여 기록</span>
-          </div>
-        </div>
-
-        {/* 필터 탭 */}
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid #2a2a2a", flexShrink: 0 }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            {filters.map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600,
-                cursor: "pointer", border: "1px solid #2a2a2a",
-                background: filter === f ? "#3b6ef8" : "transparent",
-                color: filter === f ? "#fff" : "#888",
-                transition: "all 0.15s",
-              }}>{f}</button>
-            ))}
           </div>
         </div>
 

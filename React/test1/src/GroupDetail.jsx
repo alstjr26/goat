@@ -149,20 +149,33 @@ export default function GroupDetail() {
       {/* Top bar */}
       <div style={{
         position: "sticky", top: 0, zIndex: 10,
-        display: "flex", alignItems: "center", gap: 12,
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
         padding: "16px 24px", borderBottom: "1px solid #2a2a2a",
         background: "#111111",
       }}>
-        <button onClick={() => navigate("/history")} style={{
-          background: "none", border: "none", color: "#888",
-          fontSize: 20, cursor: "pointer", padding: "0 4px",
-        }}>←</button>
-        <span style={{ fontSize: 18, fontWeight: 700 }}>{group.title}</span>
-        <span style={{
-          marginLeft: 8, fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20,
-          background: group.status === "CONFIRMED" ? "#1a3a2a" : "#2a2a1a",
-          color: group.status === "CONFIRMED" ? "#4caf80" : "#f4a429",
-        }}>{group.status === "CONFIRMED" ? "확정됨" : "투표 진행중"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button onClick={() => navigate("/history")} style={{
+            background: "none", border: "none", color: "#888",
+            fontSize: 20, cursor: "pointer", padding: "0 4px",
+          }}>←</button>
+          <span style={{ fontSize: 18, fontWeight: 700 }}>{group.title}</span>
+          <span style={{
+            marginLeft: 8, fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20,
+            background: group.status === "CONFIRMED" ? "#1a3a2a" : "#2a2a1a",
+            color: group.status === "CONFIRMED" ? "#4caf80" : "#f4a429",
+          }}>{group.status === "CONFIRMED" ? "확정됨" : "투표 진행중"}</span>
+        </div>
+        <button onClick={() => {
+          localStorage.setItem("home_selected_group_id", String(id));
+          navigate("/home");
+        }} style={{
+          background: "#222222", border: "1px solid #2a2a2a", color: "#fff",
+          borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600,
+          cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = "#2a2a2a"}
+          onMouseLeave={e => e.currentTarget.style.background = "#222222"}
+        >📅 캘린더로 보기</button>
       </div>
 
       <div style={{ padding: "24px 32px", maxWidth: 760, margin: "0 auto" }}>
