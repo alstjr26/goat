@@ -7,6 +7,57 @@ const BLOCK_COLORS = ["#3b6ef8", "#34a853", "#fbbc04", "#ea4335", "#9c27b0", "#0
 
 const PlanContext = createContext();
 
+// "2026. 06. 22 12:00 ~ 2026. 06. 22 14:00" 형식의 description을
+// 정규식으로 직접 추출해서 파싱합니다.
+function parseDateTimeChunk(str) {
+  if (!str) return null;
+  const dateMatch = str.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+  const timeMatch = str.match(/(\d{1,2}):(\d{0,2})/);
+  if (!dateMatch) return null;
+
+  const year = parseInt(dateMatch[1], 10);
+  const month = parseInt(dateMatch[2], 10);
+  const day = parseInt(dateMatch[3], 10);
+  const hour = timeMatch ? parseInt(timeMatch[1], 10) : 0;
+  const minute = timeMatch && timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+  return { year, month, day, hour, minute };
+}
+
+function planToBlock(plan) {
+  if (!plan.description) return null;
+  const parts = plan.description.split("~");
+  if (parts.length < 1) return null;
+
+  const start = parseDateTimeChunk(parts[0]);
+  const end = parts.length > 1 ? parseDateTimeChunk(parts[1]) : null;
+  if (!start) return null;
+
+  const dateObj = new Date(start.year, start.month - 1, start.day);
+  const dayOfWeek = dateObj.getDay();
+  const di = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const isoDate = `${start.year}-${String(start.month).padStart(2,'0')}-${String(start.day).padStart(2,'0')}`;
+
+  const startHour = start.hour;
+  let endHour = end ? end.hour : start.hour + 1;
+  if (endHour <= startHour) endHour = startHour + 1;
+  if (endHour > 24) endHour = 24;
+
+  return {
+    planId: plan.group_plan_id,
+    day: di,
+    isoDate,
+    startHour,
+    endHour,
+    type: "blue",
+    title: plan.title,
+    avatars: [],
+    extra: 0,
+    color: BLOCK_COLORS[Math.abs(plan.group_plan_id) % BLOCK_COLORS.length],
+  };
+}
+
 export function PlanProvider({ children }) {
   const [userBlocks, setUserBlocks] = useState([]);
   const [userPlans, setUserPlans] = useState([]);
@@ -17,7 +68,11 @@ export function PlanProvider({ children }) {
     if (!token) return;
 
     apiGetMyGroups().then(data => {
-      if (Array.isArray(data)) setUserPlans(data);
+      if (Array.isArray(data)) {
+        setUserPlans(data);
+        const blocks = data.map(planToBlock).filter(Boolean);
+        setUserBlocks(blocks);
+      }
     });
 
     apiGetSchedules().then(data => {
@@ -48,6 +103,8 @@ export function PlanProvider({ children }) {
         title, description, deadline, status: 'OPEN'
       };
       setUserPlans(prev => [...prev, newPlan]);
+      const block = planToBlock(newPlan);
+      if (block) setUserBlocks(prev => [...prev, block]);
       return { success: true, id: result.group_plan_id };
     }
     return { success: false, message: result.message };

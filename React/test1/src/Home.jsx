@@ -58,9 +58,9 @@ function CalendarBlock({ block, onClick }) {
       position: "absolute",
       top: top + 2, left: 2, right: 2,
       height: height - 4,
-      background: isBlue ? "#3b6ef8" : "transparent",
-      border: isBlue ? "none" : `1px solid ${color}`,
-      borderLeft: `3px solid ${isBlue ? "#3b6ef8" : color}`,
+      background: `${color}33`,
+      border: `1px solid ${color}`,
+      borderLeft: `3px solid ${color}`,
       borderRadius: 4,
       padding: "4px 6px",
       fontSize: 11, fontWeight: 600,
@@ -76,15 +76,13 @@ function CalendarBlock({ block, onClick }) {
         <AvatarGroup avatars={block.avatars} extra={block.extra} size={20} />
       )}
       {block.title && (
-        <div style={{ color: isBlue ? "#fff" : color, fontSize: 11, fontWeight: 600 }}>
+        <div style={{ color: color, fontSize: 11, fontWeight: 600 }}>
           {block.title}
         </div>
       )}
-      {!isBlue && (
-        <div style={{ fontSize: 10, color: "#aaa" }}>
-          {HOURS[block.startHour]} - {HOURS[block.endHour]}
-        </div>
-      )}
+      <div style={{ fontSize: 10, color: "#aaa" }}>
+        {HOURS[block.startHour]} - {HOURS[block.endHour]}
+      </div>
     </div>
   );
 }
